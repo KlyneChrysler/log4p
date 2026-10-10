@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "log4p"
+version = "0.1.0"
+description = "A log4j-inspired logging framework for Python: logger hierarchies, appenders, layouts, filters, and config files."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Klyne Chrysler C. Dotarot", email = "klyne@inventivlabs.io" }]
+keywords = ["logging", "log4j", "log4p", "log", "appender", "layout", "filter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Logging",
+]
+dependencies = [
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["log4p*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

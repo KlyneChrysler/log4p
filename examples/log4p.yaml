@@ -1,0 +1,31 @@
+root:
+  level: WARN
+  appenders: [console]
+
+loggers:
+  myapp:
+    level: DEBUG
+    appenders: [console]
+    additive: false
+  myapp.db:
+    level: INFO
+    appenders: [db_file]
+    additive: false
+
+appenders:
+  console:
+    class: ConsoleAppender
+    target: stdout
+    layout:
+      class: PatternLayout
+      pattern: "%d{ISO8601} %-5p %c - %m%n"
+  db_file:
+    class: RotatingFileAppender
+    filename: logs/db.log
+    maxBytes: 1048576
+    backupCount: 3
+    layout:
+      class: JSONLayout
+    filters:
+      - class: LevelRangeFilter
+        min_level: INFO
