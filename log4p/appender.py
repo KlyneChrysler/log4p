@@ -13,7 +13,7 @@ import shutil
 import sys
 import threading
 import time
-from typing import List, Optional, TextIO, Union
+from typing import List, Optional, TextIO, Tuple, Union
 
 from .error import ErrorHandler
 from .filter import Filter, FilterReply
@@ -553,6 +553,103 @@ class TimedRotatingFileAppender(FileAppender):
                 candidates.append(os.path.join(directory, entry))
         candidates.sort()
         for stale in candidates[:-self.backupCount]:
+            try:
+                os.remove(stale)
+            except OSError:  # pragma: no cover
+                pass
+
+
+class SizeAndTimeBasedAppender(TimedRotatingFileAppender):
+    """Roll when *either* the time period elapses *or* the file exceeds *maxBytes*.
+
+    Combines :class:`TimedRotatingFileAppender` and
+    :class:`RotatingFileAppender` (log4j's ``SizeAndTimeBasedRollingPolicy``).
+    Rotated files are named ``<file>.<timestamp>``; if that name is taken (for
+    example several size rolls within one period) a numeric suffix is appended.
+    """
+
+    def __init__(
+        self,
+        filename: str,
+        maxBytes: int = 10 * 1024 * 1024,
+        when: str = "d",
+        interval: int = 1,
+        backupCount: int = 7,
+        utc: bool = False,
+        compress: bool = False,
+        layout: Optional[Layout] = None,
+        encoding: str = "utf-8",
+        immediateFlush: bool = True,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            filename=filename,
+            when=when,
+            interval=interval,
+            backupCount=backupCount,
+            utc=utc,
+            compress=compress,
+            layout=layout,
+            encoding=encoding,
+            immediateFlush=immediateFlush,
+            threshold=threshold,
+            name=name,
+        )
+        if maxBytes <= 0:
+            raise ValueError("maxBytes must be positive")
+        self.maxBytes = maxBytes
+
+    def _write(self, text: str) -> None:
+        if self._stream is None:
+            self.start()
+        now = time.time()
+        encoded_len = len(text.encode(self.encoding))
+        if now >= self.rollover_at or self._stream.tell() + encoded_len > self.maxBytes:
+            self._rollover(now)
+        FileAppender._write(self, text)
+
+    def _rollover(self, now: float) -> None:
+        if self._stream is not None:
+            self._stream.close()
+            self._stream = None
+        suffix = self._suffix_for(now)
+        index = 1
+        rotated = f"{self.filename}.{suffix}.{index}"
+        while os.path.exists(rotated) or os.path.exists(rotated + ".gz"):
+            index += 1
+            rotated = f"{self.filename}.{suffix}.{index}"
+        if os.path.exists(self.filename):
+            os.replace(self.filename, rotated)
+            if self.compress:
+                with open(rotated, "rb") as src, gzip.open(rotated + ".gz", "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                os.remove(rotated)
+        self._expire_backups()
+        self.rollover_at = self._compute_rollover(now)
+        self._header_written = False
+        self.start()
+
+    def _expire_backups(self) -> None:
+        if self.backupCount <= 0:
+            return
+        directory = os.path.dirname(os.path.abspath(self.filename)) or "."
+        base = os.path.basename(self.filename) + "."
+        candidates = [
+            os.path.join(directory, entry)
+            for entry in os.listdir(directory)
+            if entry.startswith(base)
+        ]
+
+        def sort_key(path: str) -> Tuple[str, int]:
+            stem = os.path.basename(path)[len(base) :]
+            if stem.endswith(".gz"):
+                stem = stem[:-3]
+            suffix, _, index = stem.rpartition(".")
+            return (suffix, int(index) if index.isdigit() else 0)
+
+        candidates.sort(key=sort_key)
+        for stale in candidates[: -self.backupCount]:
             try:
                 os.remove(stale)
             except OSError:  # pragma: no cover

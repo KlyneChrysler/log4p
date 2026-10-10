@@ -1,0 +1,125 @@
+import glob
+import os
+import time
+
+import pytest
+
+from log4p import (
+    ConsoleAppender,
+    Level,
+    LogRecord,
+    MapRewritePolicy,
+    PatternLayout,
+    RewriteAppender,
+    SizeAndTimeBasedAppender,
+)
+
+
+def record(message="line", level=Level.INFO):
+    return LogRecord(name="app", level=level, message=message)
+
+
+def test_map_rewrite_policy_update():
+    policy = MapRewritePolicy({"req": "R1"})
+    rec = record()
+    rec.context["req"] = "old"
+    policy.rewrite(rec)
+    assert rec.context["req"] == "R1"
+
+
+def test_map_rewrite_policy_add_keeps_existing():
+    policy = MapRewritePolicy({"req": "new", "user": "bob"}, mode="add")
+    rec = record()
+    rec.context["req"] = "old"
+    policy.rewrite(rec)
+    assert rec.context["req"] == "old"
+    assert rec.context["user"] == "bob"
+
+
+def test_map_rewrite_policy_rejects_bad_mode():
+    with pytest.raises(ValueError):
+        MapRewritePolicy({}, mode="nope")
+
+
+def test_rewrite_appender_applies_policy(capsys):
+    inner = ConsoleAppender(PatternLayout("%X{req} %m"))
+    rw = RewriteAppender(inner, policy=MapRewritePolicy({"req": "R1"}))
+    rw.doAppend(record("hello"))
+    inner.stop()
+    assert capsys.readouterr().out == "R1 hello\n"
+
+
+def test_rewrite_appender_without_policy(capsys):
+    inner = ConsoleAppender(PatternLayout("%m"))
+    rw = RewriteAppender(inner)
+    rw.doAppend(record("plain"))
+    inner.stop()
+    assert capsys.readouterr().out == "plain\n"
+
+
+def test_rewrite_appender_delegates_lifecycle():
+    inner = ConsoleAppender()
+    rw = RewriteAppender(inner)
+    rw.start()
+    assert inner.isStarted()
+    rw.stop()
+    assert not inner.isStarted()
+
+
+def test_size_and_time_rolls_on_size(tmp_path):
+    path = tmp_path / "app.log"
+    app = SizeAndTimeBasedAppender(
+        str(path), maxBytes=30, when="h", backupCount=10, layout=PatternLayout("%m")
+    )
+    for i in range(10):
+        app.doAppend(record(f"line-{i:02d}"))
+    app.stop()
+    backups = [p for p in glob.glob(str(path) + ".2*")]
+    assert backups
+    assert path.exists()
+
+
+def test_size_and_time_unique_names(tmp_path):
+    path = tmp_path / "app.log"
+    app = SizeAndTimeBasedAppender(
+        str(path), maxBytes=20, when="h", backupCount=10, layout=PatternLayout("%m")
+    )
+    for i in range(6):
+        app.doAppend(record(f"line-{i:02d}"))
+    app.stop()
+    names = sorted(os.path.basename(p) for p in glob.glob(str(path) + ".2*"))
+    assert len(names) == len(set(names))
+
+
+def test_size_and_time_rolls_on_time(tmp_path):
+    path = tmp_path / "app.log"
+    app = SizeAndTimeBasedAppender(
+        str(path), maxBytes=10_000, when="S", backupCount=10, layout=PatternLayout("%m")
+    )
+    app.doAppend(record("before"))
+    app.rollover_at = time.time() - 1
+    app.doAppend(record("after"))
+    app.stop()
+    assert path.read_text() == "after\n"
+    assert glob.glob(str(path) + ".2*")
+
+
+def test_size_and_time_invalid_max_bytes(tmp_path):
+    with pytest.raises(ValueError):
+        SizeAndTimeBasedAppender(str(tmp_path / "x.log"), maxBytes=0)
+
+
+def test_size_and_time_compresses(tmp_path):
+    path = tmp_path / "app.log"
+    app = SizeAndTimeBasedAppender(
+        str(path),
+        maxBytes=20,
+        when="h",
+        backupCount=10,
+        compress=True,
+        layout=PatternLayout("%m"),
+    )
+    for i in range(6):
+        app.doAppend(record(f"line-{i:02d}"))
+    app.stop()
+    assert glob.glob(str(path) + ".2*.gz")

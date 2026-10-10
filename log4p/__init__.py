@@ -18,6 +18,7 @@ from .appender import (
     ConsoleAppender,
     FileAppender,
     RotatingFileAppender,
+    SizeAndTimeBasedAppender,
     TimedRotatingFileAppender,
 )
 from .bridge import (
@@ -51,6 +52,7 @@ from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
 from .logger import Logger, getLogger, getRootLogger, shutdown
 from .marker import Marker, getMarker, getMarkerNames
 from .record import LogRecord
+from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
 
 __version__ = "0.1.0"
 
@@ -87,6 +89,10 @@ __all__ = [
     "FileAppender",
     "RotatingFileAppender",
     "TimedRotatingFileAppender",
+    "SizeAndTimeBasedAppender",
+    "RewritePolicy",
+    "MapRewritePolicy",
+    "RewriteAppender",
     "ErrorHandler",
     "FallbackErrorHandler",
     "Logger",

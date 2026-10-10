@@ -85,6 +85,7 @@ The full log4j conversion vocabulary is supported:
 | `%M` / `%method` | Source function | `connect` |
 | `%C` / `%class` | Source module | `db` |
 | `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key) | `r-1` |
+| `%K{key}` | Map/context value (or whole map with no key) | `r-1` |
 | `%x` / `%ndc` | NDC stack | `outer inner` |
 | `%marker` | Marker attached to the record | `SQL` |
 | `%stack` | Stack trace from `stack_info=True` | |
@@ -96,7 +97,8 @@ The full log4j conversion vocabulary is supported:
 | `%%` | Literal `%` | |
 
 Format modifiers work: `%-5p` (left-justify, width 5), `%5p` (right-justify),
-`%.30m` (truncate to 30), `%-7.15c` (both).
+`%.30m` (truncate to 30), `%-7.15c` (both). `%c{1.}` abbreviates ancestor
+segments to their first letter (`org.apache.commons.Foo` -> `o.a.c.Foo`).
 
 Selectors transform the result of an inner pattern (nested braces are handled):
 
@@ -106,10 +108,14 @@ Selectors transform the result of an inner pattern (nested braces are handled):
 | `%equals{pattern}{test}{substitution}` | Replace literal *test* occurrences in *pattern* |
 | `%equalsIgnoreCase{pattern}{test}{substitution}` | Case-insensitive variant |
 | `%notEmpty{pattern}` | Output *pattern* only if its variables are all non-empty |
+| `%maxLen{pattern}{N}` | Truncate to *N* chars (adds `...` when *N* > 20) |
+| `%encode{pattern}{HTML\|XML\|JSON\|CRLF}` | Escape the inner result |
 
 ```python
 PatternLayout(r"%replace{%msg}{\s}{_}")      # spaces -> underscores
 PatternLayout("%notEmpty{[%marker]} %msg")   # hide "[marker]" when no marker
+PatternLayout("%maxLen{%m}{80}")             # truncate long messages
+PatternLayout("%encode{%m}{HTML}")           # HTML-escape the message
 ```
 
 ANSI colour is supported for consoles that understand escapes:
@@ -142,7 +148,10 @@ from log4p import (
     FileAppender,
     RotatingFileAppender,
     TimedRotatingFileAppender,
+    SizeAndTimeBasedAppender,
     AsyncAppender,
+    RewriteAppender,
+    MapRewritePolicy,
 )
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
@@ -150,15 +159,25 @@ FileAppender("app.log", layout, append=True)
 RotatingFileAppender("app.log", maxBytes=10_000_000, backupCount=5, layout=...)
 TimedRotatingFileAppender("app.log", when="midnight", backupCount=7,
                           compress=True, layout=...)
+SizeAndTimeBasedAppender("app.log", maxBytes=10_000_000, when="d",
+                         backupCount=7, compress=True, layout=...)
 AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
+RewriteAppender(FileAppender("app.log"),
+                policy=MapRewritePolicy({"request_id": "req-42"}))
 ```
 
 - `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
   rolls on a schedule (`when` = `S`/`M`/`H`/`D`/`midnight`/`W0`..`W6`,
   optional `compress=True` to gzip old files, `backupCount` to expire them).
+- `SizeAndTimeBasedAppender` rolls on whichever comes first: the size limit or
+  the time period. Rotated files are `<file>.<timestamp>.<n>` so multiple rolls
+  in one period stay distinct.
 - `AsyncAppender` wraps another appender and writes from a background thread so
   slow targets never block the caller. `overflow="block"` waits for space (no
   loss); `overflow="discard"` drops and counts via `appender.dropped`.
+- `RewriteAppender` runs a `RewritePolicy` over each record before delegating.
+  `MapRewritePolicy({"k": "v"}, mode="add"|"update")` adds/updates context (MDC)
+  entries.
 
 Each appender takes an optional `threshold` and any number of filters:
 
@@ -320,8 +339,8 @@ config.basicConfig(level="INFO", filename="app.log")
 
 See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
 `demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`,
-`patterns_and_filters.py`). Captured output for the demo lives in
-[`examples/output.md`](examples/output.md).
+`patterns_and_filters.py`, `rolling_and_rewrite.py`). Captured output for the
+demo lives in [`examples/output.md`](examples/output.md).
 
 ## Why "log4p"?
 

@@ -50,6 +50,7 @@ from .appender import (
     ConsoleAppender,
     FileAppender,
     RotatingFileAppender,
+    SizeAndTimeBasedAppender,
     TimedRotatingFileAppender,
 )
 from .error import ErrorHandler, FallbackErrorHandler
@@ -73,6 +74,7 @@ from .layout import (
     XMLLayout,
 )
 from .logger import getLogger, getLoggerManager, getRootLogger
+from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
 
 _REGISTRY = {
     cls.__name__: cls
@@ -82,7 +84,11 @@ _REGISTRY = {
         FileAppender,
         RotatingFileAppender,
         TimedRotatingFileAppender,
+        SizeAndTimeBasedAppender,
         AsyncAppender,
+        RewriteAppender,
+        RewritePolicy,
+        MapRewritePolicy,
         Layout,
         SimpleLayout,
         PatternLayout,
@@ -180,6 +186,18 @@ def _build_filter(spec: Any) -> Filter:
     return cls(*args, **spec)
 
 
+def _build_policy(spec: Any) -> Optional[RewritePolicy]:
+    if spec is None:
+        return None
+    if isinstance(spec, RewritePolicy):
+        return spec
+    if isinstance(spec, str):
+        spec = {"class": spec}
+    spec = dict(spec)
+    cls = _resolve(spec.pop("class"))
+    return cls(**spec)
+
+
 def _build_error_handler(spec: Any):
     if spec is None:
         return None
@@ -213,10 +231,13 @@ def _build_appender(spec: Any, built: Dict[str, Appender]) -> Appender:
     filters = spec.pop("filters", None) or []
     threshold = spec.pop("threshold", None)
     error_handler = _build_error_handler(spec.pop("errorHandler", None))
+    policy = _build_policy(spec.pop("policy", None))
     if layout is not None:
         spec["layout"] = layout
     if threshold is not None:
         spec["threshold"] = threshold
+    if policy is not None:
+        spec["policy"] = policy
 
     appender = cls(**spec)
 

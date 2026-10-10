@@ -256,3 +256,35 @@ def test_pattern_replace_missing_args_is_literal():
     assert PatternLayout("%replace{%msg}").format(make_record()) == "%replace{%msg}"
 
 
+def test_pattern_logger_abbreviation():
+    record = make_record(name="org.apache.commons.Foo")
+    assert PatternLayout("%c{1.}").format(record) == "o.a.c.Foo"
+    assert PatternLayout("%c{2.}").format(record) == "o.a.commons.Foo"
+    assert PatternLayout("%c{.}").format(record) == "o.a.c.Foo"
+    assert PatternLayout("%c{2}").format(record) == "commons.Foo"
+
+
+def test_pattern_max_len():
+    long = make_record(msg="x" * 40, args=())
+    assert PatternLayout("%maxLen{%m}{10}").format(long) == "x" * 10
+    assert PatternLayout("%maxLen{%m}{30}").format(long) == "x" * 27 + "..."
+    short = make_record()
+    assert PatternLayout("%maxLen{%m}{30}").format(short) == "hello world"
+
+
+def test_pattern_encode():
+    record = make_record(msg='a"b<c>&', args=())
+    assert PatternLayout("%encode{%m}{HTML}").format(record) == "a&quot;b&lt;c&gt;&amp;"
+    assert PatternLayout("%encode{%m}{XML}").format(record) == "a&quot;b&lt;c&gt;&amp;"
+    assert PatternLayout("%encode{%m}{JSON}").format(record) == 'a\\"b<c>&'
+    crlf = make_record(msg="a\nb", args=())
+    assert PatternLayout("%encode{%m}{CRLF}").format(crlf) == "a\\nb"
+
+
+def test_pattern_map_converter():
+    record = make_record()
+    assert PatternLayout("%K{req}").format(record) == "r-1"
+    assert json.loads(PatternLayout("%K").format(record)) == {"req": "r-1"}
+
+
+

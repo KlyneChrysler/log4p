@@ -306,11 +306,21 @@ class HTMLLayout(Layout):
         return "<tr>" + "".join(cells) + "</tr>\n"
 
 
-def _logger_name(record: LogRecord, precision: Optional[int], full: bool) -> str:
+def _logger_name(
+    record: LogRecord,
+    precision: Optional[int],
+    full: bool,
+    abbreviate: bool = False,
+) -> str:
     name = record.name if full else record.name.split(".")[-1]
-    if precision is not None and precision > 0:
+    if precision is not None:
         parts = name.split(".")
-        if len(parts) > precision:
+        if abbreviate:
+            if len(parts) > precision:
+                head = [part[:1] for part in parts[:-precision]]
+                return ".".join(head + parts[-precision:])
+            return name
+        if precision > 0 and len(parts) > precision:
             return ".".join(parts[-precision:])
     return name
 
@@ -331,13 +341,27 @@ class PatternLayout(Layout):
         %M / %method              source function name
         %C / %class               source module name
         %X{key} / %mdc{key}       MDC value (or whole map when no key)
+        %K{key}                   map/context value (or whole map)
         %x / %ndc                 NDC stack joined by spaces
         %h / %host                hostname
         %n                        platform newline
         %%                        literal percent
 
-    Format modifiers ``%[-][min][.max]`` are honoured, e.g. ``%-5p`` or
-    ``%.30c``.
+    Selectors and colour (log4j style)::
+
+        %replace{p}{regex}{sub}      regex substitution over a sub-pattern
+        %equals{p}{test}{sub}        literal replacement
+        %equalsIgnoreCase{p}{test}{sub}
+        %notEmpty{p}                 emit only when all variables are non-empty
+        %style{p}{bold,red}          wrap in ANSI codes
+        %highlight{p}{ERROR=red,...} colour by level
+        %red{p} ... %green{p}        colour shorthand
+        %maxLen{p}{N}                truncate (adds "..." when N > 20)
+        %encode{p}{HTML|XML|JSON|CRLF}
+
+    ``%c{1.}`` abbreviates ancestors to their first letter (e.g.
+    ``o.a.c.Foo``). Format modifiers ``%[-][min][.max]`` are honoured, e.g.
+    ``%-5p`` or ``%.30c``.
     """
 
     def __init__(self, pattern: str = "%m%n") -> None:
@@ -354,8 +378,11 @@ _SELECTOR_NAMES = [
     "varsNotEmpty",
     "notEmpty",
     "highlight",
+    "maxLength",
+    "maxLen",
     "replace",
     "equals",
+    "encode",
     "style",
 ]
 
@@ -594,6 +621,40 @@ def _make_converter(
 
         return wrap(highlight)
 
+    if name in ("maxLen", "maxLength"):
+        if len(options) < 2:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        limit = int(options[1])
+
+        def truncate(record: LogRecord) -> str:
+            text = "".join(t(record) for t in sub)
+            if len(text) <= limit:
+                return text
+            if limit > 20:
+                return text[: limit - 3] + "..."
+            return text[:limit]
+
+        return wrap(truncate)
+
+    if name == "encode":
+        if len(options) < 2:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        kind = options[1].upper()
+
+        def encode(record: LogRecord) -> str:
+            text = "".join(t(record) for t in sub)
+            if kind in ("HTML", "XML"):
+                return _xml_escape(text)
+            if kind == "JSON":
+                return json.dumps(text)[1:-1]
+            if kind == "CRLF":
+                return text.replace("\r", "\\r").replace("\n", "\\n")
+            return text
+
+        return wrap(encode)
+
     if name in _COLOR_NAMES:
         if not options:
             return wrap(lambda r: raw)
@@ -602,8 +663,13 @@ def _make_converter(
         return wrap(lambda r: _wrap_ansi("".join(t(r) for t in sub), color))
 
     if name in ("c", "logger"):
-        precision = int(option) if option and option.isdigit() else None
-        return wrap(lambda r: _logger_name(r, precision, full=True))
+        abbreviate = bool(option) and option.endswith(".")
+        digits = option[:-1] if abbreviate else option
+        if abbreviate:
+            precision = int(digits) if digits.isdigit() else 1
+        else:
+            precision = int(digits) if digits and digits.isdigit() else None
+        return wrap(lambda r: _logger_name(r, precision, full=True, abbreviate=abbreviate))
     if name in ("d", "date"):
         fmt = option
         return wrap(lambda r: format_timestamp(r.created, fmt))
@@ -640,6 +706,10 @@ def _make_converter(
     if name in ("throwable", "exception", "ex"):
         return wrap(lambda r: r.getExceptionText() or "")
     if name in ("X", "mdc"):
+        if option:
+            return wrap(lambda r: str(r.context.get(option, "")))
+        return wrap(lambda r: json.dumps(r.context, default=str))
+    if name == "K":
         if option:
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))

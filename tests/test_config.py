@@ -461,3 +461,60 @@ def test_dictconfig_builds_or_filter_behaviour():
     assert "INFO boom low" in out
     assert "quiet low" not in out
 
+
+def test_dictconfig_rewrite_appender_with_policy():
+    from log4p import RewriteAppender
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["rewrite"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%X{req} %m"},
+                },
+                "rewrite": {
+                    "class": "RewriteAppender",
+                    "appender": "console",
+                    "policy": {"class": "MapRewritePolicy", "properties": {"req": "R1"}},
+                },
+            },
+        }
+    )
+    root = getRootLogger()
+    app = root.getAppenders()[0]
+    assert isinstance(app, RewriteAppender)
+    root.info("hi")
+    assert buf.getvalue() == "R1 hi\n"
+
+
+def test_dictconfig_size_and_time_appender(tmp_path):
+    from log4p import SizeAndTimeBasedAppender
+
+    path = tmp_path / "app.log"
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["rolling"]},
+            "appenders": {
+                "rolling": {
+                    "class": "SizeAndTimeBasedAppender",
+                    "filename": str(path),
+                    "maxBytes": 20,
+                    "when": "h",
+                    "backupCount": 5,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    root = getRootLogger()
+    app = root.getAppenders()[0]
+    assert isinstance(app, SizeAndTimeBasedAppender)
+    for i in range(6):
+        root.info("line-%02d", i)
+    app.stop()
+    assert path.exists()
+
+

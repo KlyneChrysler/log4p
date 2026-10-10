@@ -8,6 +8,12 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `RewriteAppender` with `RewritePolicy` / `MapRewritePolicy` (add/update MDC
+  context), configurable via a `policy` key.
+- `SizeAndTimeBasedAppender`: rolls on whichever comes first, the size limit or
+  the time period; unique indexed rotated-file names.
+- PatternLayout selectors `%maxLen` and `%encode` (`HTML`/`XML`/`JSON`/`CRLF`).
+- `%c{1.}` logger-name abbreviation and the `%K{key}` map/context converter.
 - Composite filters: `AndFilter`, `OrFilter`, `NotFilter` (nestable, buildable
   from config via `filters` / `filter` keys); `Appender.getFilters()`.
 - PatternLayout selectors `%replace`, `%equals`, `%equalsIgnoreCase`,
