@@ -518,3 +518,35 @@ def test_dictconfig_size_and_time_appender(tmp_path):
     assert path.exists()
 
 
+def test_dictconfig_socket_and_syslog_appenders():
+    from log4p import SocketAppender, SyslogAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["tcp", "syslog"]},
+            "appenders": {
+                "tcp": {
+                    "class": "SocketAppender",
+                    "host": "127.0.0.1",
+                    "port": 5140,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                },
+                "syslog": {
+                    "class": "SyslogAppender",
+                    "host": "127.0.0.1",
+                    "port": 5514,
+                    "facility": "LOCAL1",
+                    "socktype": "UDP",
+                },
+            },
+        }
+    )
+    apps = getRootLogger().getAppenders()
+    assert isinstance(apps[0], SocketAppender)
+    assert isinstance(apps[1], SyslogAppender)
+    assert apps[1].facility == "LOCAL1"
+    apps[0].stop()
+    apps[1].stop()
+
+
+

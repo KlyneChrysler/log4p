@@ -74,6 +74,7 @@ from .layout import (
     XMLLayout,
 )
 from .logger import getLogger, getLoggerManager, getRootLogger
+from .net import SocketAppender, SyslogAppender
 from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
 
 _REGISTRY = {
@@ -89,6 +90,8 @@ _REGISTRY = {
         RewriteAppender,
         RewritePolicy,
         MapRewritePolicy,
+        SocketAppender,
+        SyslogAppender,
         Layout,
         SimpleLayout,
         PatternLayout,

@@ -152,6 +152,8 @@ from log4p import (
     AsyncAppender,
     RewriteAppender,
     MapRewritePolicy,
+    SocketAppender,
+    SyslogAppender,
 )
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
@@ -164,6 +166,8 @@ SizeAndTimeBasedAppender("app.log", maxBytes=10_000_000, when="d",
 AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
 RewriteAppender(FileAppender("app.log"),
                 policy=MapRewritePolicy({"request_id": "req-42"}))
+SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
+SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
 ```
 
 - `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
@@ -178,6 +182,9 @@ RewriteAppender(FileAppender("app.log"),
 - `RewriteAppender` runs a `RewritePolicy` over each record before delegating.
   `MapRewritePolicy({"k": "v"}, mode="add"|"update")` adds/updates context (MDC)
   entries.
+- `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits RFC
+  3164 syslog over UDP or TCP (severity derived from the level). Both reconnect
+  lazily and throttle retries (`reconnectDelay`).
 
 Each appender takes an optional `threshold` and any number of filters:
 
@@ -339,8 +346,9 @@ config.basicConfig(level="INFO", filename="app.log")
 
 See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
 `demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`,
-`patterns_and_filters.py`, `rolling_and_rewrite.py`). Captured output for the
-demo lives in [`examples/output.md`](examples/output.md).
+`patterns_and_filters.py`, `rolling_and_rewrite.py`, `net_appenders.py`).
+Captured output for the demo lives in
+[`examples/output.md`](examples/output.md).
 
 ## Why "log4p"?
 

@@ -51,6 +51,7 @@ from .layout import (
 from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
 from .logger import Logger, getLogger, getRootLogger, shutdown
 from .marker import Marker, getMarker, getMarkerNames
+from .net import SocketAppender, SyslogAppender
 from .record import LogRecord
 from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
 
@@ -93,6 +94,8 @@ __all__ = [
     "RewritePolicy",
     "MapRewritePolicy",
     "RewriteAppender",
+    "SocketAppender",
+    "SyslogAppender",
     "ErrorHandler",
     "FallbackErrorHandler",
     "Logger",
