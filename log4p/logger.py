@@ -7,6 +7,7 @@ chain unless ``additivity`` is turned off.
 
 from __future__ import annotations
 
+import atexit
 import os
 import sys
 import threading
@@ -283,6 +284,9 @@ class LoggerManager:
     def getLoggerNames(self) -> List[str]:
         return sorted(self._loggers.keys())
 
+    def allLoggers(self) -> List[Logger]:
+        return list(self._loggers.values())
+
     def warnNoAppenders(self, name: str) -> None:
         if not self.warn_on_no_appenders or name in self._warned:
             return
@@ -352,3 +356,7 @@ def getLoggerManager() -> LoggerManager:
 def shutdown() -> None:
     """Flush and stop every appender across the hierarchy."""
     _DEFAULT.shutdown()
+
+
+# Flush buffered appenders (async queues, files) on interpreter exit.
+atexit.register(_DEFAULT.shutdown)

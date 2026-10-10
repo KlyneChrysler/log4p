@@ -178,3 +178,89 @@ def test_appender_instance_passed_directly():
     )
     getRootLogger().info("direct")
     assert buf.getvalue() == "direct\n"
+
+
+def test_dictconfig_async_appender_wraps_delegate():
+    from log4p import AsyncAppender
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["async"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                },
+                "async": {"class": "AsyncAppender", "appender": "console"},
+            },
+        }
+    )
+    root = getRootLogger()
+    app = root.getAppenders()[0]
+    assert isinstance(app, AsyncAppender)
+    root.info("through async")
+    app.flush()
+    app.stop()
+    assert buf.getvalue() == "through async\n"
+
+
+def test_dictconfig_async_requires_prior_delegate():
+    with pytest.raises(ValueError):
+        log4p_config.dictConfig(
+            {
+                "appenders": {
+                    "async": {"class": "AsyncAppender", "appender": "missing"},
+                }
+            }
+        )
+
+
+def test_dictconfig_fallback_error_handler():
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "ERROR", "appenders": ["primary"]},
+            "appenders": {
+                "backup": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "SimpleLayout"},
+                },
+                "primary": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "SimpleLayout"},
+                    "errorHandler": {
+                        "class": "FallbackErrorHandler",
+                        "backup": ["backup"],
+                    },
+                },
+            },
+        }
+    )
+    primary = getRootLogger().getAppenders()[0]
+    handler = primary.getErrorHandler()
+    assert handler.isActivated() is False
+    assert len(handler.getBackups()) == 1
+
+
+def test_dictconfig_timed_rotating(tmp_path):
+    path = tmp_path / "t.log"
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["timed"]},
+            "appenders": {
+                "timed": {
+                    "class": "TimedRotatingFileAppender",
+                    "filename": str(path),
+                    "when": "h",
+                    "backupCount": 3,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    getRootLogger().info("timed")
+    getLoggerManager().shutdown()
+    assert path.read_text() == "timed\n"

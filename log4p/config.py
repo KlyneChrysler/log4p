@@ -44,10 +44,13 @@ from typing import Any, Dict, Mapping, Optional
 
 from .appender import (
     Appender,
+    AsyncAppender,
     ConsoleAppender,
     FileAppender,
     RotatingFileAppender,
+    TimedRotatingFileAppender,
 )
+from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
     Filter,
     LevelRangeFilter,
@@ -65,6 +68,8 @@ _REGISTRY = {
         ConsoleAppender,
         FileAppender,
         RotatingFileAppender,
+        TimedRotatingFileAppender,
+        AsyncAppender,
         Layout,
         SimpleLayout,
         PatternLayout,
@@ -73,6 +78,8 @@ _REGISTRY = {
         ThresholdFilter,
         LevelRangeFilter,
         RegexFilter,
+        ErrorHandler,
+        FallbackErrorHandler,
     )
 }
 
@@ -115,19 +122,59 @@ def _build_filter(spec: Any) -> Filter:
     return cls(**spec)
 
 
-def _build_appender(spec: Any) -> Appender:
+def _build_error_handler(spec: Any):
+    if spec is None:
+        return None
+    if isinstance(spec, ErrorHandler):
+        return spec
+    if isinstance(spec, str):
+        spec = {"class": spec}
+    spec = dict(spec)
+    cls = _resolve(spec.pop("class"))
+    backups = spec.pop("backup", None) or []
+    handler = cls(**spec)
+    setattr(handler, "_log4p_backups", backups)
+    return handler
+
+
+def _build_appender(spec: Any, built: Dict[str, Appender]) -> Appender:
     if isinstance(spec, Appender):
         return spec
     spec = dict(spec)
     cls = _resolve(spec.pop("class"))
+
+    delegate = spec.pop("appender", None)
+    if isinstance(delegate, str):
+        if delegate not in built:
+            raise ValueError(
+                f"async appender references {delegate!r}, which must be defined first"
+            )
+        spec["appender"] = built[delegate]
+
     layout = _build_layout(spec.pop("layout", None))
     filters = spec.pop("filters", None) or []
     threshold = spec.pop("threshold", None)
+    error_handler = _build_error_handler(spec.pop("errorHandler", None))
     if layout is not None:
         spec["layout"] = layout
     if threshold is not None:
         spec["threshold"] = threshold
+
     appender = cls(**spec)
+
+    if error_handler is not None:
+        if hasattr(error_handler, "setAppender"):
+            error_handler.setAppender(appender)
+        backup_names = getattr(error_handler, "_log4p_backups", [])
+        for backup_name in backup_names:
+            if backup_name not in built:
+                raise ValueError(
+                    f"error handler references backup appender {backup_name!r}, "
+                    "which must be defined first"
+                )
+            error_handler.setBackupAppender(built[backup_name])
+        appender.setErrorHandler(error_handler)
+
     for filt in filters:
         appender.addFilter(_build_filter(filt))
     return appender
@@ -148,9 +195,9 @@ def dictConfig(config: Mapping[str, Any]) -> None:
     if do_clear:
         manager.clear()
 
-    appenders: Dict[str, Appender] = {
-        name: _build_appender(spec) for name, spec in appender_cfgs.items()
-    }
+    appenders: Dict[str, Appender] = {}
+    for name, spec in appender_cfgs.items():
+        appenders[name] = _build_appender(spec, appenders)
 
     root = getRootLogger()
     if root_cfg:

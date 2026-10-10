@@ -28,12 +28,20 @@ from .filter import (
 )
 from .appender import (
     Appender,
+    AsyncAppender,
     ConsoleAppender,
     FileAppender,
     RotatingFileAppender,
+    TimedRotatingFileAppender,
 )
+from .error import ErrorHandler, FallbackErrorHandler
 from .logger import Logger, getLogger, getRootLogger, shutdown
 from .context import MDC, NDC
+from .bridge import (
+    StdlibLoggingAppender,
+    StdlibToLog4pHandler,
+    capture_stdlib,
+)
 from . import config
 
 __version__ = "0.1.0"
@@ -56,14 +64,21 @@ __all__ = [
     "LevelRangeFilter",
     "RegexFilter",
     "Appender",
+    "AsyncAppender",
     "ConsoleAppender",
     "FileAppender",
     "RotatingFileAppender",
+    "TimedRotatingFileAppender",
+    "ErrorHandler",
+    "FallbackErrorHandler",
     "Logger",
     "getLogger",
     "getRootLogger",
     "shutdown",
     "MDC",
     "NDC",
+    "StdlibLoggingAppender",
+    "StdlibToLog4pHandler",
+    "capture_stdlib",
     "config",
 ]

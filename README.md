@@ -99,12 +99,28 @@ Other layouts: `SimpleLayout` (`LEVEL - message`) and `JSONLayout`
 ## Appenders
 
 ```python
-from log4p import ConsoleAppender, FileAppender, RotatingFileAppender
+from log4p import (
+    ConsoleAppender,
+    FileAppender,
+    RotatingFileAppender,
+    TimedRotatingFileAppender,
+    AsyncAppender,
+)
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
 FileAppender("app.log", layout, append=True)
 RotatingFileAppender("app.log", maxBytes=10_000_000, backupCount=5, layout=...)
+TimedRotatingFileAppender("app.log", when="midnight", backupCount=7,
+                          compress=True, layout=...)
+AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
 ```
+
+- `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
+  rolls on a schedule (`when` = `S`/`M`/`H`/`D`/`midnight`/`W0`..`W6`,
+  optional `compress=True` to gzip old files, `backupCount` to expire them).
+- `AsyncAppender` wraps another appender and writes from a background thread so
+  slow targets never block the caller. `overflow="block"` waits for space (no
+  loss); `overflow="discard"` drops and counts via `appender.dropped`.
 
 Each appender takes an optional `threshold` and any number of filters:
 
@@ -113,6 +129,50 @@ from log4p import ThresholdFilter, LevelRangeFilter, RegexFilter
 
 appender.addFilter(ThresholdFilter("INFO"))
 appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
+```
+
+### Error handlers
+
+An appender that raises while appending consults its error handler. The default
+reports to `stderr`; `FallbackErrorHandler` swaps a dead primary appender for
+backup(s) so logging survives a full disk or a closed socket:
+
+```python
+from log4p import ErrorHandler, FallbackErrorHandler
+
+primary.setErrorHandler(ErrorHandler())          # report to stderr (default)
+
+fallback = FallbackErrorHandler()
+fallback.setAppender(primary)
+fallback.setBackupAppender(ConsoleAppender(PatternLayout("%m")))
+primary.setErrorHandler(fallback)                # on failure, backups take over
+```
+
+Appenders are flushed and stopped automatically on interpreter exit (`atexit`),
+so buffered/async output is not lost.
+
+## Standard library interop
+
+Keep using `logging.getLogger(...)` anywhere (including third-party code) and
+route it into log4p:
+
+```python
+from log4p import capture_stdlib, StdlibToLog4pHandler
+
+capture_stdlib("WARNING")                        # stdlib root -> log4p root
+logging.getLogger("myapp.lib").warning("routed") # lands in log4p appenders
+
+# or target a specific log4p logger:
+logging.getLogger("legacy").addHandler(StdlibToLog4pHandler("myapp.legacy"))
+```
+
+Level, caller info, `extra={...}` fields, and MDC all carry across. The reverse
+direction is available too:
+
+```python
+from log4p import StdlibLoggingAppender
+
+logger.addAppender(StdlibLoggingAppender(logging.getLogger("...") ))
 ```
 
 ## MDC / NDC
@@ -173,8 +233,9 @@ Quick setup, similar to `logging.basicConfig`:
 config.basicConfig(level="INFO", filename="app.log")
 ```
 
-See `examples/` for runnable snippets. Captured output for all of them lives
-in [`examples/output.md`](examples/output.md) (`python3 examples/demo.py`).
+See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
+`demo.py`, `async_and_bridge.py`). Captured output for the demo lives in
+[`examples/output.md`](examples/output.md).
 
 ## Why "log4p"?
 
