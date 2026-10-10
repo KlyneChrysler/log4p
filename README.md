@@ -154,6 +154,7 @@ from log4p import (
     MapRewritePolicy,
     SocketAppender,
     SyslogAppender,
+    SMTPAppender,
 )
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
@@ -168,6 +169,8 @@ RewriteAppender(FileAppender("app.log"),
                 policy=MapRewritePolicy({"request_id": "req-42"}))
 SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
 SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
+SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
+             triggerLevel="ERROR")
 ```
 
 - `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
@@ -185,6 +188,9 @@ SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
 - `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits RFC
   3164 syslog over UDP or TCP (severity derived from the level). Both reconnect
   lazily and throttle retries (`reconnectDelay`).
+- `SMTPAppender` keeps a ring buffer of recent events and emails them (with the
+  triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
+  Supports `starttls`, `ssl`, and `username`/`password`.
 
 Each appender takes an optional `threshold` and any number of filters:
 

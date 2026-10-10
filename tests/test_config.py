@@ -549,4 +549,29 @@ def test_dictconfig_socket_and_syslog_appenders():
     apps[1].stop()
 
 
+def test_dictconfig_smtp_appender():
+    from log4p import SMTPAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["mail"]},
+            "appenders": {
+                "mail": {
+                    "class": "SMTPAppender",
+                    "host": "smtp.example.com",
+                    "port": 587,
+                    "fromaddr": "log@example.com",
+                    "toaddrs": ["ops@example.com"],
+                    "triggerLevel": "ERROR",
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, SMTPAppender)
+    assert app.toaddrs == ["ops@example.com"]
+    assert app.triggerLevel.name == "ERROR"
+
+
 

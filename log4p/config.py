@@ -74,6 +74,7 @@ from .layout import (
     XMLLayout,
 )
 from .logger import getLogger, getLoggerManager, getRootLogger
+from .mail import SMTPAppender
 from .net import SocketAppender, SyslogAppender
 from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
 
@@ -92,6 +93,7 @@ _REGISTRY = {
         MapRewritePolicy,
         SocketAppender,
         SyslogAppender,
+        SMTPAppender,
         Layout,
         SimpleLayout,
         PatternLayout,

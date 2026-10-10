@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `SMTPAppender`: ring-buffered email alerts on severe events (STARTTLS/SSL,
+  auth, pattern subjects).
 - `SocketAppender` (TCP) and `SyslogAppender` (RFC 3164 over UDP/TCP) network
   appenders with lazy reconnect and retry throttling.
 - `RewriteAppender` with `RewritePolicy` / `MapRewritePolicy` (add/update MDC

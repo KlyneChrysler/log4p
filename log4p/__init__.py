@@ -50,6 +50,7 @@ from .layout import (
 )
 from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
 from .logger import Logger, getLogger, getRootLogger, shutdown
+from .mail import SMTPAppender
 from .marker import Marker, getMarker, getMarkerNames
 from .net import SocketAppender, SyslogAppender
 from .record import LogRecord
@@ -96,6 +97,7 @@ __all__ = [
     "RewriteAppender",
     "SocketAppender",
     "SyslogAppender",
+    "SMTPAppender",
     "ErrorHandler",
     "FallbackErrorHandler",
     "Logger",
