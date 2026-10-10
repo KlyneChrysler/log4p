@@ -11,21 +11,7 @@ Public entry points mirror log4j's API shape:
     logger.info("connected to %s", "orders-db")
 """
 
-from .levels import Level, OFF, ALL, addLevel, getLevel, getLevelNames
-from .record import LogRecord
-from .layout import (
-    Layout,
-    SimpleLayout,
-    PatternLayout,
-    JSONLayout,
-)
-from .filter import (
-    Filter,
-    FilterReply,
-    ThresholdFilter,
-    LevelRangeFilter,
-    RegexFilter,
-)
+from . import config
 from .appender import (
     Appender,
     AsyncAppender,
@@ -34,15 +20,34 @@ from .appender import (
     RotatingFileAppender,
     TimedRotatingFileAppender,
 )
-from .error import ErrorHandler, FallbackErrorHandler
-from .logger import Logger, getLogger, getRootLogger, shutdown
-from .context import MDC, NDC
 from .bridge import (
     StdlibLoggingAppender,
     StdlibToLog4pHandler,
     capture_stdlib,
 )
-from . import config
+from .context import MDC, NDC
+from .error import ErrorHandler, FallbackErrorHandler
+from .filter import (
+    Filter,
+    FilterReply,
+    LevelRangeFilter,
+    MarkerFilter,
+    RegexFilter,
+    ThresholdFilter,
+)
+from .layout import (
+    HTMLLayout,
+    JSONLayout,
+    Layout,
+    LogfmtLayout,
+    PatternLayout,
+    SimpleLayout,
+    XMLLayout,
+)
+from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
+from .logger import Logger, getLogger, getRootLogger, shutdown
+from .marker import Marker, getMarker, getMarkerNames
+from .record import LogRecord
 
 __version__ = "0.1.0"
 
@@ -54,15 +59,22 @@ __all__ = [
     "getLevel",
     "getLevelNames",
     "LogRecord",
+    "Marker",
+    "getMarker",
+    "getMarkerNames",
     "Layout",
     "SimpleLayout",
     "PatternLayout",
     "JSONLayout",
+    "LogfmtLayout",
+    "XMLLayout",
+    "HTMLLayout",
     "Filter",
     "FilterReply",
     "ThresholdFilter",
     "LevelRangeFilter",
     "RegexFilter",
+    "MarkerFilter",
     "Appender",
     "AsyncAppender",
     "ConsoleAppender",

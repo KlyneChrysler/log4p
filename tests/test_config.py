@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from log4p import getLogger, getRootLogger
 from log4p import config as log4p_config
+from log4p import getLogger, getMarker, getRootLogger
 from log4p.logger import getLoggerManager
 
 
@@ -264,3 +264,108 @@ def test_dictconfig_timed_rotating(tmp_path):
     getRootLogger().info("timed")
     getLoggerManager().shutdown()
     assert path.read_text() == "timed\n"
+
+
+def test_dictconfig_substitutes_env_and_sys(monkeypatch):
+    monkeypatch.setenv("LOG4P_TEST_LEVEL", "DEBUG")
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "${env:LOG4P_TEST_LEVEL}", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%p %m"},
+                }
+            },
+        }
+    )
+    assert getRootLogger().getLevel().name == "DEBUG"
+
+
+def test_dictconfig_substitution_default_value(monkeypatch):
+    monkeypatch.delenv("LOG4P_MISSING", raising=False)
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "${env:LOG4P_MISSING:-WARN}", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "SimpleLayout"},
+                }
+            },
+        }
+    )
+    assert getRootLogger().getLevel().name == "WARN"
+
+
+def test_substitute_variables_recurses():
+    result = log4p_config.substitute_variables(
+        {"a": ["${env:LOG4P_NO_SUCH:-x}"], "b": {"c": "${sys:maxsize}"}}
+    )
+    assert result["a"] == ["x"]
+    assert result["b"]["c"]
+
+
+def test_dictconfig_can_disable_substitution():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "substitute": False,
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "${keep} %m"},
+                }
+            },
+        }
+    )
+    getRootLogger().info("v")
+    assert "${keep} v" in buf.getvalue()
+
+
+def test_dictconfig_builds_logfmt_layout():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "LogfmtLayout", "timestamp": False},
+                }
+            },
+        }
+    )
+    getRootLogger().info("hello")
+    assert "level=info" in buf.getvalue()
+    assert "msg=hello" in buf.getvalue()
+
+
+def test_dictconfig_builds_marker_filter():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [{"class": "MarkerFilter", "marker": "SQL"}],
+                }
+            },
+        }
+    )
+    root = getRootLogger()
+    root.info("tagged", marker=getMarker("SQL"))
+    root.info("untagged")
+    assert "tagged" in buf.getvalue()
+    assert "untagged" not in buf.getvalue()
+

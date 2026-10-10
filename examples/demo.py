@@ -5,10 +5,10 @@ The exact output is captured in examples/output.md.
 """
 
 from log4p import (
+    MDC,
     ConsoleAppender,
     JSONLayout,
     LevelRangeFilter,
-    MDC,
     PatternLayout,
     RegexFilter,
     SimpleLayout,

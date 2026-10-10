@@ -81,3 +81,25 @@ class RegexFilter(Filter):
         if matched == (self.on_match == "accept"):
             return FilterReply.NEUTRAL
         return FilterReply.DENY
+
+
+class MarkerFilter(Filter):
+    """Pass records carrying *marker* (or a marker derived from it).
+
+    *marker* may be a :class:`~log4p.marker.Marker` or a name, which is looked
+    up (and created) in the marker registry.
+    """
+
+    def __init__(self, marker, on_match: str = "accept") -> None:
+        from .marker import getMarker
+
+        self.marker = marker if hasattr(marker, "isInstanceOf") else getMarker(str(marker))
+        if on_match not in ("accept", "deny"):
+            raise ValueError("on_match must be 'accept' or 'deny'")
+        self.on_match = on_match
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        present = bool(record.marker) and record.marker.isInstanceOf(self.marker)
+        if present == (self.on_match == "accept"):
+            return FilterReply.NEUTRAL
+        return FilterReply.DENY

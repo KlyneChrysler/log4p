@@ -113,6 +113,114 @@ class JSONLayout(Layout):
         )
 
 
+def _logfmt_value(value: object) -> str:
+    text = str(value)
+    if text == "" or any(ch in text for ch in ' =\t\n"'):
+        return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return text
+
+
+class LogfmtLayout(Layout):
+    """Emit ``key=value`` pairs (logfmt), one line per record.
+
+    Top-level fields come first, then MDC context entries.
+    """
+
+    ignoresExceptions = True
+
+    def __init__(self, timestamp: bool = True) -> None:
+        self.timestamp = timestamp
+
+    def format(self, record: LogRecord) -> str:
+        pairs = []
+        if self.timestamp:
+            pairs.append(("time", time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(record.created))))
+        pairs.append(("level", record.level.name.lower()))
+        pairs.append(("logger", record.name))
+        pairs.append(("msg", record.getMessage()))
+        if record.marker is not None:
+            pairs.append(("marker", str(record.marker)))
+        if record.ndc:
+            pairs.append(("ndc", record.ndc))
+        for key, value in record.context.items():
+            pairs.append((key, value))
+        if record.exc_info:
+            pairs.append(("exception", (record.getExceptionText() or "").strip()))
+        return " ".join(f"{key}={_logfmt_value(value)}" for key, value in pairs)
+
+
+def _xml_escape(text: str) -> str:
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
+
+
+class XMLLayout(Layout):
+    """Wrap each record in an ``<event>`` element (one per line)."""
+
+    ignoresExceptions = True
+
+    def format(self, record: LogRecord) -> str:
+        attrs = [
+            f'logger="{_xml_escape(record.name)}"',
+            f'level="{record.level.name}"',
+            f'thread="{_xml_escape(record.threadName)}"',
+            f"timestamp=\"{int(record.created * 1000)}\"",
+        ]
+        if record.marker is not None:
+            attrs.append(f'marker="{_xml_escape(str(record.marker))}"')
+        body = _xml_escape(record.getMessage())
+        parts = [f"<event {' '.join(attrs)}>", f"<message>{body}</message>"]
+        for key, value in record.context.items():
+            parts.append(f'<data name="{_xml_escape(str(key))}">{_xml_escape(str(value))}</data>')
+        exc = record.getExceptionText()
+        if exc:
+            parts.append(f"<exception>{_xml_escape(exc)}</exception>")
+        parts.append("</event>")
+        return "".join(parts)
+
+
+class HTMLLayout(Layout):
+    """Render a full HTML table, using :meth:`header` and :meth:`footer`."""
+
+    ignoresExceptions = True
+
+    def __init__(self, title: str = "log4p log") -> None:
+        self.title = title
+
+    def header(self) -> str:
+        return (
+            "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+            f"<title>{_xml_escape(self.title)}</title>"
+            "<style>body{font-family:monospace}td{padding:2px 6px;vertical-align:top}"
+            ".ERROR,.FATAL{color:#b00}.WARN{color:#b60}.DEBUG,.TRACE{color:#888}"
+            "</style></head><body><table><thead><tr>"
+            "<th>Time</th><th>Level</th><th>Logger</th><th>Thread</th><th>Message</th>"
+            "</tr></thead><tbody>\n"
+        )
+
+    def footer(self) -> str:
+        return "</tbody></table></body></html>\n"
+
+    def format(self, record: LogRecord) -> str:
+        when = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(record.created))
+        message = record.getMessage()
+        exc = record.getExceptionText()
+        if exc:
+            message = message + "\n" + exc
+        cells = (
+            f"<td>{when}.{int(record.msecs):03d}</td>",
+            f"<td class='{record.level.name}'>{record.level.name}</td>",
+            f"<td>{_xml_escape(record.name)}</td>",
+            f"<td>{_xml_escape(record.threadName)}</td>",
+            f"<td>{_xml_escape(message)}</td>",
+        )
+        return "<tr>" + "".join(cells) + "</tr>\n"
+
+
 def _logger_name(record: LogRecord, precision: Optional[int], full: bool) -> str:
     name = record.name if full else record.name.split(".")[-1]
     if precision is not None and precision > 0:
@@ -156,6 +264,8 @@ class PatternLayout(Layout):
 
 
 _LONG_NAMES = [
+    "throwable",
+    "exception",
     "message",
     "logger",
     "level",
@@ -168,7 +278,12 @@ _LONG_NAMES = [
     "class",
     "mdc",
     "ndc",
+    "marker",
+    "stack",
     "host",
+    "pid",
+    "tid",
+    "ex",
 ]
 
 
@@ -279,6 +394,8 @@ def _make_converter(
         return wrap(lambda r: r.level.name)
     if name in ("t", "thread"):
         return wrap(lambda r: r.threadName)
+    if name in ("T", "tid"):
+        return wrap(lambda r: str(r.thread))
     if name in ("r", "relative"):
         return wrap(lambda r: str(int(r.relativeCreated)))
     if name in ("F", "file"):
@@ -293,8 +410,16 @@ def _make_converter(
         return wrap(lambda r: r.ndc)
     if name in ("h", "host"):
         return wrap(lambda r: _HOSTNAME)
+    if name in ("pid",):
+        return wrap(lambda r: str(r.process))
     if name in ("n",):
         return wrap(lambda r: "\n")
+    if name in ("marker",):
+        return wrap(lambda r: str(r.marker) if r.marker is not None else "")
+    if name in ("stack",):
+        return wrap(lambda r: r.stack_info or "")
+    if name in ("throwable", "exception", "ex"):
+        return wrap(lambda r: r.getExceptionText() or "")
     if name in ("X", "mdc"):
         if option:
             return wrap(lambda r: str(r.context.get(option, "")))

@@ -11,6 +11,7 @@ import atexit
 import os
 import sys
 import threading
+import traceback
 from typing import Any, List, Optional, Sequence, Union
 
 from .appender import Appender
@@ -160,6 +161,8 @@ class Logger:
         *,
         exc_info: Any = None,
         extra: Optional[dict] = None,
+        stack_info: bool = False,
+        marker: Any = None,
         stacklevel: int = 0,
     ) -> None:
         caller = _find_caller(stacklevel)
@@ -169,6 +172,8 @@ class Logger:
             exc_info = sys.exc_info()
         if exc_info and exc_info[0] is None:
             exc_info = None
+
+        stack_text = _format_stack() if stack_info else None
 
         context = MDC.getCopy()
         if extra:
@@ -184,6 +189,8 @@ class Logger:
             funcName=caller[2],
             context=context,
             ndc=NDC.get(),
+            marker=marker,
+            stack_info=stack_text,
         )
 
         if self._filters and not self._passes_filters(record):
@@ -234,6 +241,16 @@ def _find_caller(stacklevel: int = 0):
         code = frame.f_code
         return (code.co_filename, frame.f_lineno, code.co_name)
     return ("", 0, "")
+
+
+def _format_stack() -> str:
+    """Build a 'Stack (most recent call last):' block for stack_info=True."""
+    lines = ["Stack (most recent call last):"]
+    for summary in traceback.extract_stack()[:-1]:
+        if os.path.normcase(os.path.abspath(summary.filename)) == _LOGGER_FILE:
+            continue
+        lines.append(f'  File "{summary.filename}", line {summary.lineno}, in {summary.name}')
+    return "\n".join(lines)
 
 
 class LoggerManager:

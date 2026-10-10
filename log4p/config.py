@@ -40,6 +40,8 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import re
+import sys
 from typing import Any, Dict, Mapping, Optional
 
 from .appender import (
@@ -54,12 +56,20 @@ from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
     Filter,
     LevelRangeFilter,
+    MarkerFilter,
     RegexFilter,
     ThresholdFilter,
 )
-from .layout import JSONLayout, Layout, PatternLayout, SimpleLayout
+from .layout import (
+    HTMLLayout,
+    JSONLayout,
+    Layout,
+    LogfmtLayout,
+    PatternLayout,
+    SimpleLayout,
+    XMLLayout,
+)
 from .logger import getLogger, getLoggerManager, getRootLogger
-
 
 _REGISTRY = {
     cls.__name__: cls
@@ -74,14 +84,49 @@ _REGISTRY = {
         SimpleLayout,
         PatternLayout,
         JSONLayout,
+        LogfmtLayout,
+        XMLLayout,
+        HTMLLayout,
         Filter,
         ThresholdFilter,
         LevelRangeFilter,
         RegexFilter,
+        MarkerFilter,
         ErrorHandler,
         FallbackErrorHandler,
     )
 }
+
+
+_SUBST_RE = re.compile(r"\$\{([^}:]+):([^}]*)\}")
+
+
+def _lookup_substitution(kind: str, expr: str) -> str:
+    """Resolve ``${kind:name:-default}`` to a string value."""
+    default = ""
+    name = expr
+    if ":-" in expr:
+        name, _, default = expr.partition(":-")
+    if kind == "env":
+        value = os.environ.get(name)
+    elif kind == "sys":
+        value = getattr(sys, name, None)
+    else:
+        raise ValueError(f"unknown substitution kind {kind!r} (use 'env' or 'sys')")
+    if value is None:
+        return default
+    return str(value)
+
+
+def substitute_variables(value: Any) -> Any:
+    """Recursively replace ``${env:...}`` / ``${sys:...}`` in config values."""
+    if isinstance(value, str):
+        return _SUBST_RE.sub(lambda m: _lookup_substitution(m.group(1), m.group(2)), value)
+    if isinstance(value, Mapping):
+        return {key: substitute_variables(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [substitute_variables(item) for item in value]
+    return value
 
 
 def _resolve(name: str) -> type:
@@ -185,6 +230,8 @@ def dictConfig(config: Mapping[str, Any]) -> None:
     if not isinstance(config, Mapping):
         raise TypeError("dictConfig expects a mapping")
     config = dict(config)
+    if config.pop("substitute", True):
+        config = substitute_variables(config)
 
     appender_cfgs: Dict[str, Any] = config.get("appenders", {})
     logger_cfgs: Dict[str, Any] = config.get("loggers", {})

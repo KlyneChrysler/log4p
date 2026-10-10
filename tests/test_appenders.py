@@ -2,11 +2,12 @@ import io
 
 from log4p import (
     ConsoleAppender,
+    FileAppender,
+    HTMLLayout,
     Level,
     LogRecord,
     PatternLayout,
     RotatingFileAppender,
-    FileAppender,
     ThresholdFilter,
 )
 
@@ -110,3 +111,37 @@ def test_appender_lifecycle_flags(tmp_path):
     assert appender.isStarted()
     appender.stop()
     assert not appender.isStarted()
+
+
+def test_file_appender_writes_html_header_and_footer(tmp_path):
+    path = tmp_path / "page.html"
+    appender = FileAppender(str(path), layout=HTMLLayout(), append=False)
+    appender.doAppend(record("first"))
+    appender.stop()
+    text = path.read_text()
+    assert text.startswith("<!DOCTYPE html>")
+    assert "<tr>" in text
+    assert text.rstrip().endswith("</html>")
+
+
+def test_console_appender_html_header_on_start_footer_on_stop():
+    buf = io.StringIO()
+    appender = ConsoleAppender(HTMLLayout(), stream=buf)
+    appender.start()
+    appender.doAppend(record("x"))
+    appender.stop()
+    text = buf.getvalue()
+    assert text.startswith("<!DOCTYPE html>")
+    assert text.rstrip().endswith("</html>")
+
+
+def test_file_appender_html_header_not_duplicated_on_append(tmp_path):
+    path = tmp_path / "page2.html"
+    first = FileAppender(str(path), layout=HTMLLayout(), append=True)
+    first.doAppend(record("one"))
+    first.stop()
+    second = FileAppender(str(path), layout=HTMLLayout(), append=True)
+    second.doAppend(record("two"))
+    second.stop()
+    assert path.read_text().count("<!DOCTYPE html>") == 1
+

@@ -27,6 +27,7 @@ class LogRecord:
         "args",
         "exc_info",
         "exc_text",
+        "stack_info",
         "pathname",
         "filename",
         "module",
@@ -41,6 +42,7 @@ class LogRecord:
         "processName",
         "context",
         "ndc",
+        "marker",
         "_formatted",
     )
 
@@ -56,6 +58,8 @@ class LogRecord:
         funcName: str = "",
         context: Optional[Mapping[str, Any]] = None,
         ndc: str = "",
+        marker: Any = None,
+        stack_info: Optional[str] = None,
     ) -> None:
         self.name = name
         self.level = level
@@ -63,6 +67,7 @@ class LogRecord:
         self.args = args
         self.exc_info = exc_info
         self.exc_text: Optional[str] = None
+        self.stack_info = stack_info
         self.pathname = pathname or ""
         self.filename = os.path.basename(self.pathname) if pathname else ""
         base = self.filename
@@ -81,6 +86,7 @@ class LogRecord:
         self.processName = "MainProcess"
         self.context: Dict[str, Any] = dict(context) if context else {}
         self.ndc = ndc
+        self.marker = marker
         self._formatted: Optional[str] = None
 
     def getMessage(self) -> str:
@@ -100,8 +106,7 @@ class LogRecord:
         if self.exc_info:
             if self.exc_text is None:
                 self.exc_text = "".join(traceback.format_exception(*self.exc_info))
-            return self.exc_text
-        return None
+        return self.exc_text
 
     def toDict(self) -> Dict[str, Any]:
         """A JSON-serialisable view used by :class:`~log4p.layout.JSONLayout`."""
@@ -120,6 +125,10 @@ class LogRecord:
             data["context"] = self.context
         if self.ndc:
             data["ndc"] = self.ndc
+        if self.marker is not None:
+            data["marker"] = str(self.marker)
+        if self.stack_info:
+            data["stack"] = self.stack_info
         exc = self.getExceptionText()
         if exc:
             data["exception"] = exc

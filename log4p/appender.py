@@ -161,6 +161,24 @@ class ConsoleAppender(Appender):
             return self._stream
         return sys.stdout if self.target == "stdout" else sys.stderr
 
+    def start(self) -> None:
+        with self._lock:
+            if not self._started:
+                header = self._layout.header()
+                if header:
+                    self.stream.write(header)
+                    self.stream.flush()
+            self._started = True
+
+    def stop(self) -> None:
+        with self._lock:
+            if self._started:
+                footer = self._layout.footer()
+                if footer:
+                    self.stream.write(footer)
+                    self.stream.flush()
+            self._started = False
+
     def append(self, record: LogRecord) -> None:
         text = self._render(record)
         if not text.endswith("\n"):
@@ -188,6 +206,7 @@ class FileAppender(Appender):
         self.encoding = encoding
         self.immediateFlush = immediateFlush
         self._stream: Optional[TextIO] = None
+        self._header_written = False
 
     def start(self) -> None:
         with self._lock:
@@ -196,11 +215,29 @@ class FileAppender(Appender):
                 os.makedirs(directory, exist_ok=True)
                 mode = "a" if self.append_mode else "w"
                 self._stream = open(self.filename, mode, encoding=self.encoding)
+                self._write_header_if_empty()
             self._started = True
+
+    def _write_header_if_empty(self) -> None:
+        if self._header_written or self._stream is None:
+            return
+        try:
+            self._stream.seek(0, os.SEEK_END)
+            empty = self._stream.tell() == 0
+        except OSError:
+            empty = True
+        header = self._layout.header()
+        if empty and header:
+            self._stream.write(header)
+            self._stream.flush()
+        self._header_written = True
 
     def stop(self) -> None:
         with self._lock:
             if self._stream is not None:
+                footer = self._layout.footer()
+                if footer:
+                    self._stream.write(footer)
                 self._stream.close()
                 self._stream = None
             self._started = False
@@ -288,6 +325,7 @@ class RotatingFileAppender(FileAppender):
             os.replace(self.filename, f"{self.filename}.1")
         elif os.path.exists(self.filename):
             os.remove(self.filename)
+        self._header_written = False
         self.start()
 
 
@@ -498,6 +536,7 @@ class TimedRotatingFileAppender(FileAppender):
                 os.remove(rotated)
         self._expire_backups()
         self.rollover_at = self._compute_rollover(now)
+        self._header_written = False
         self.start()
 
     def _expire_backups(self) -> None:

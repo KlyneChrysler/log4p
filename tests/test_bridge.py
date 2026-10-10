@@ -12,8 +12,8 @@ from log4p import (
     capture_stdlib,
     getLogger,
 )
-from log4p.logger import LoggerManager
 from log4p.context import MDC
+from log4p.logger import LoggerManager
 
 
 @pytest.fixture

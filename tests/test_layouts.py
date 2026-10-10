@@ -123,3 +123,77 @@ def test_message_formatting_dict_args():
 def test_message_formatting_bad_args_does_not_raise():
     record = LogRecord(name="x", level=Level.INFO, message="%d", args=("no",))
     assert "no" in record.getMessage()
+
+
+def test_pattern_new_converters_pid_thread_throwable():
+    record = make_record()
+    import os
+    import threading
+
+    assert PatternLayout("%pid").format(record) == str(os.getpid())
+    assert PatternLayout("%T").format(record) == str(record.thread)
+    assert PatternLayout("%tid").format(record) == str(record.thread)
+    assert PatternLayout("%t").format(record) == threading.current_thread().name
+
+
+def test_pattern_exception_converters():
+    record = LogRecord(name="x", level=Level.ERROR, message="oops")
+    record.exc_text = "Traceback (most recent call last):\nValueError: bad"
+    assert "ValueError: bad" in PatternLayout("%throwable").format(record)
+    assert "ValueError: bad" in PatternLayout("%ex").format(record)
+    assert "ValueError: bad" in PatternLayout("%exception").format(record)
+
+
+def test_pattern_stack_converter():
+    record = LogRecord(name="x", level=Level.INFO, message="m", stack_info="STACK HERE")
+    assert PatternLayout("%stack").format(record) == "STACK HERE"
+    assert PatternLayout("%stack").format(make_record()) == ""
+
+
+def test_logfmt_layout():
+    from log4p import LogfmtLayout
+
+    out = LogfmtLayout().format(make_record())
+    assert "level=info" in out
+    assert "logger=app.db" in out
+    assert 'msg="hello world"' in out
+    assert "req=r-1" in out
+
+
+def test_logfmt_layout_quotes_special_values():
+    from log4p import LogfmtLayout
+
+    record = LogRecord(name="x", level=Level.INFO, message="a b=c", args=None)
+    out = LogfmtLayout(timestamp=False).format(record)
+    assert 'msg="a b=c"' in out
+
+
+def test_xml_layout():
+    from log4p import XMLLayout
+
+    out = XMLLayout().format(make_record())
+    assert out.startswith("<event ")
+    assert 'level="INFO"' in out
+    assert "<message>hello world</message>" in out
+    assert '<data name="req">r-1</data>' in out
+    assert out.endswith("</event>")
+
+
+def test_xml_layout_escapes_body():
+    from log4p import XMLLayout
+
+    record = LogRecord(name="x", level=Level.INFO, message="a<b>&c", args=None)
+    out = XMLLayout().format(record)
+    assert "a&lt;b&gt;&amp;c" in out
+
+
+def test_html_layout_header_body_footer():
+    from log4p import HTMLLayout
+
+    layout = HTMLLayout(title="t")
+    assert layout.header().startswith("<!DOCTYPE html>")
+    row = layout.format(make_record())
+    assert row.startswith("<tr>") and row.endswith("</tr>\n")
+    assert "hello world" in row
+    assert layout.footer().startswith("</tbody>")
+

@@ -86,6 +86,11 @@ The full log4j conversion vocabulary is supported:
 | `%C` / `%class` | Source module | `db` |
 | `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key) | `r-1` |
 | `%x` / `%ndc` | NDC stack | `outer inner` |
+| `%marker` | Marker attached to the record | `SQL` |
+| `%stack` | Stack trace from `stack_info=True` | |
+| `%throwable` / `%ex` / `%exception` | Exception traceback | |
+| `%pid` | Process id | `8123` |
+| `%T` / `%tid` | Thread id | `140234` |
 | `%h` / `%host` | Hostname | |
 | `%n` | Newline | |
 | `%%` | Literal `%` | |
@@ -93,8 +98,15 @@ The full log4j conversion vocabulary is supported:
 Format modifiers work: `%-5p` (left-justify, width 5), `%5p` (right-justify),
 `%.30m` (truncate to 30), `%-7.15c` (both).
 
-Other layouts: `SimpleLayout` (`LEVEL - message`) and `JSONLayout`
-(one JSON object per line, includes exception text).
+Other layouts:
+
+| Layout | Output |
+|--------|--------|
+| `SimpleLayout` | `LEVEL - message` |
+| `JSONLayout` | one JSON object per line (includes marker, stack, exception) |
+| `LogfmtLayout` | `level=info logger=... msg="..."` key-value pairs |
+| `XMLLayout` | one `<event>` element per record |
+| `HTMLLayout` | a full HTML table (header/footer written by stream appenders) |
 
 ## Appenders
 
@@ -125,10 +137,11 @@ AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
 Each appender takes an optional `threshold` and any number of filters:
 
 ```python
-from log4p import ThresholdFilter, LevelRangeFilter, RegexFilter
+from log4p import ThresholdFilter, LevelRangeFilter, RegexFilter, MarkerFilter
 
 appender.addFilter(ThresholdFilter("INFO"))
 appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
+appender.addFilter(MarkerFilter("SQL"))          # only records tagged SQL
 ```
 
 ### Error handlers
@@ -189,6 +202,33 @@ MDC.clear()
 
 Both are isolated per thread / asyncio task.
 
+## Markers
+
+Markers are named (optionally hierarchical) tags you attach per call and filter on
+with `MarkerFilter`, mirroring log4j:
+
+```python
+from log4p import getMarker, MarkerFilter
+
+secure = getMarker("SECURITY")
+sql = getMarker("SQL")
+audit = getMarker("AUDIT", parents=[secure])   # audit "is a" security marker
+
+logger.info("SELECT 1", marker=sql)            # %marker -> SQL
+appender.addFilter(MarkerFilter(secure))       # passes audit too (inheritance)
+```
+
+## Stack traces
+
+Request a stack trace without an exception via `stack_info=True` (captured where
+you call the logger); render it with `%stack`. Exceptions render with
+`%throwable` / `%ex`:
+
+```python
+logger.info("where am I?", stack_info=True)
+logger.exception("failed")   # %throwable contains the traceback
+```
+
 ## Configuration
 
 ### Dict / YAML
@@ -227,6 +267,12 @@ The same structure loads from a file (YAML or JSON):
 config.fileConfig("log4p.yaml")
 ```
 
+Values may reference environment variables or interpreter attributes, with an
+optional default: `${env:LOG_LEVEL:-INFO}`, `${env:HOME}`, `${sys:maxsize}`.
+Substitution is recursive and on by default; pass `"substitute": False` at the
+top level to disable it. Any component by short name (`LogfmtLayout`, `XMLLayout`,
+`HTMLLayout`, `MarkerFilter`, ...) or by dotted import path is available.
+
 Quick setup, similar to `logging.basicConfig`:
 
 ```python
@@ -234,8 +280,8 @@ config.basicConfig(level="INFO", filename="app.log")
 ```
 
 See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
-`demo.py`, `async_and_bridge.py`). Captured output for the demo lives in
-[`examples/output.md`](examples/output.md).
+`demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`). Captured output for
+the demo lives in [`examples/output.md`](examples/output.md).
 
 ## Why "log4p"?
 

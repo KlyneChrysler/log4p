@@ -212,3 +212,36 @@ def test_caller_attribution_skips_log4p_frames(manager):
     assert captured["funcName"] == "helper"
     assert captured["pathname"].endswith("test_logger.py")
     assert captured["lineno"] == expected_line
+
+
+def test_stack_info_populates_record(manager):
+    captured = {}
+
+    class Capture(ConsoleAppender):
+        def append(self, record):
+            captured["stack"] = record.stack_info
+
+    logger = manager.getLogger("stack")
+    logger.setAdditivity(False)
+    logger.setLevel("DEBUG")
+    logger.addAppender(Capture(PatternLayout("%m")))
+
+    logger.info("with stack", stack_info=True)
+    assert captured["stack"] is not None
+    assert "Stack (most recent call last):" in captured["stack"]
+
+
+def test_stack_info_absent_by_default(manager):
+    captured = {}
+
+    class Capture(ConsoleAppender):
+        def append(self, record):
+            captured["stack"] = record.stack_info
+
+    logger = manager.getLogger("nostack")
+    logger.setAdditivity(False)
+    logger.setLevel("DEBUG")
+    logger.addAppender(Capture(PatternLayout("%m")))
+    logger.info("no stack")
+    assert captured["stack"] is None
+
