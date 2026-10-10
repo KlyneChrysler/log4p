@@ -54,9 +54,12 @@ from .appender import (
 )
 from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
+    AndFilter,
     Filter,
     LevelRangeFilter,
     MarkerFilter,
+    NotFilter,
+    OrFilter,
     RegexFilter,
     ThresholdFilter,
 )
@@ -92,6 +95,9 @@ _REGISTRY = {
         LevelRangeFilter,
         RegexFilter,
         MarkerFilter,
+        AndFilter,
+        OrFilter,
+        NotFilter,
         ErrorHandler,
         FallbackErrorHandler,
     )
@@ -164,7 +170,14 @@ def _build_filter(spec: Any) -> Filter:
         spec = {"class": spec}
     spec = dict(spec)
     cls = _resolve(spec.pop("class"))
-    return cls(**spec)
+    args = []
+    children = spec.pop("filters", None)
+    if children is not None:
+        args = [_build_filter(child) for child in children]
+    single = spec.pop("filter", None)
+    if single is not None:
+        args.append(_build_filter(single))
+    return cls(*args, **spec)
 
 
 def _build_error_handler(spec: Any):

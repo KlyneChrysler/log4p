@@ -8,6 +8,13 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Composite filters: `AndFilter`, `OrFilter`, `NotFilter` (nestable, buildable
+  from config via `filters` / `filter` keys); `Appender.getFilters()`.
+- PatternLayout selectors `%replace`, `%equals`, `%equalsIgnoreCase`,
+  `%notEmpty` (aliases `%variablesNotEmpty`, `%varsNotEmpty`) with brace-aware,
+  nestable option parsing.
+- ANSI colour converters `%style`, `%highlight`, and colour shorthand
+  (`%red{...}`, `%green{...}`, ...).
 - Markers (`Marker`, `getMarker`, `getMarkerNames`) with optional hierarchy,
   a `marker=` keyword on every logging method, the `%marker` pattern converter,
   and `MarkerFilter`.
@@ -21,6 +28,10 @@ All notable changes to log4p are documented here. This project follows
   `${sys:attr}`) plus `"substitute": False` to opt out.
 - `py.typed` marker and package data.
 - Tooling: ruff and coverage configuration, GitHub Actions CI, MIT LICENSE.
+
+### Fixed
+
+- `%msg` is now recognised (previously the trailing `sg` leaked as literal text).
 
 ### Changed
 

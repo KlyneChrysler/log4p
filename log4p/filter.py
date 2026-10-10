@@ -103,3 +103,63 @@ class MarkerFilter(Filter):
         if present == (self.on_match == "accept"):
             return FilterReply.NEUTRAL
         return FilterReply.DENY
+
+
+class _CompositeFilter(Filter):
+    """Base for filters that combine child filters."""
+
+    def __init__(self, *filters: Filter) -> None:
+        flat: list = []
+        for item in filters:
+            if isinstance(item, (list, tuple)):
+                flat.extend(item)
+            else:
+                flat.append(item)
+        self.filters = flat
+
+
+class AndFilter(_CompositeFilter):
+    """Accept only when every child accepts (deny on any denial)."""
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        if not self.filters:
+            return FilterReply.NEUTRAL
+        saw_neutral = False
+        for filt in self.filters:
+            reply = filt.decide(record)
+            if reply == FilterReply.DENY:
+                return FilterReply.DENY
+            if reply == FilterReply.NEUTRAL:
+                saw_neutral = True
+        return FilterReply.NEUTRAL if saw_neutral else FilterReply.ACCEPT
+
+
+class OrFilter(_CompositeFilter):
+    """Accept when any child accepts (deny only when every child denies)."""
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        if not self.filters:
+            return FilterReply.NEUTRAL
+        all_deny = True
+        for filt in self.filters:
+            reply = filt.decide(record)
+            if reply == FilterReply.ACCEPT:
+                return FilterReply.ACCEPT
+            if reply != FilterReply.DENY:
+                all_deny = False
+        return FilterReply.DENY if all_deny else FilterReply.NEUTRAL
+
+
+class NotFilter(Filter):
+    """Invert a single child filter (``ACCEPT`` <-> ``DENY``)."""
+
+    def __init__(self, filter: Filter) -> None:
+        self.filter = filter
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        reply = self.filter.decide(record)
+        if reply == FilterReply.ACCEPT:
+            return FilterReply.DENY
+        if reply == FilterReply.DENY:
+            return FilterReply.ACCEPT
+        return FilterReply.NEUTRAL

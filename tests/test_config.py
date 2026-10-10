@@ -369,3 +369,95 @@ def test_dictconfig_builds_marker_filter():
     assert "tagged" in buf.getvalue()
     assert "untagged" not in buf.getvalue()
 
+
+def test_dictconfig_builds_nested_and_filter():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%p %m"},
+                    "filters": [
+                        {
+                            "class": "AndFilter",
+                            "filters": [
+                                {"class": "ThresholdFilter", "level": "WARN"},
+                                {"class": "RegexFilter", "pattern": "boom"},
+                            ],
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    root = getRootLogger()
+    root.warn("boom now")
+    root.warn("fine")
+    root.info("boom but low")
+    out = buf.getvalue()
+    assert "WARN boom now" in out
+    assert "WARN fine" not in out
+    assert "boom but low" not in out
+
+
+def test_dictconfig_builds_not_filter():
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {
+                            "class": "NotFilter",
+                            "filter": {"class": "RegexFilter", "pattern": "skip"},
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    from log4p import NotFilter, RegexFilter
+
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, NotFilter)
+    assert isinstance(built.filter, RegexFilter)
+
+
+def test_dictconfig_builds_or_filter_behaviour():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%p %m"},
+                    "filters": [
+                        {
+                            "class": "OrFilter",
+                            "filters": [
+                                {"class": "ThresholdFilter", "level": "WARN"},
+                                {"class": "RegexFilter", "pattern": "boom"},
+                            ],
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    root = getRootLogger()
+    root.warn("high")
+    root.info("boom low")
+    root.info("quiet low")
+    out = buf.getvalue()
+    assert "WARN high" in out
+    assert "INFO boom low" in out
+    assert "quiet low" not in out
+

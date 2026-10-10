@@ -28,10 +28,13 @@ from .bridge import (
 from .context import MDC, NDC
 from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
+    AndFilter,
     Filter,
     FilterReply,
     LevelRangeFilter,
     MarkerFilter,
+    NotFilter,
+    OrFilter,
     RegexFilter,
     ThresholdFilter,
 )
@@ -75,6 +78,9 @@ __all__ = [
     "LevelRangeFilter",
     "RegexFilter",
     "MarkerFilter",
+    "AndFilter",
+    "OrFilter",
+    "NotFilter",
     "Appender",
     "AsyncAppender",
     "ConsoleAppender",

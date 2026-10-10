@@ -7,9 +7,10 @@ syntax), and :class:`JSONLayout`.
 from __future__ import annotations
 
 import json
+import re
 import socket
 import time
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 
 from .record import LogRecord
 
@@ -71,6 +72,90 @@ def format_timestamp(created: float, fmt: Optional[str] = None) -> str:
     if "%" in fmt:
         return _strftime_with_millis(created, fmt)
     return _strftime_with_millis(created, _java_to_strftime(fmt))
+
+
+_ANSI_RESET = "\x1b[0m"
+
+_ANSI_CODES: Dict[str, str] = {
+    "normal": "0",
+    "reset": "0",
+    "bright": "1",
+    "bold": "1",
+    "dim": "2",
+    "underline": "4",
+    "blink": "5",
+    "reverse": "7",
+    "hidden": "8",
+    "black": "30",
+    "red": "31",
+    "green": "32",
+    "yellow": "33",
+    "blue": "34",
+    "magenta": "35",
+    "cyan": "36",
+    "white": "37",
+    "default": "39",
+    "bright_black": "90",
+    "bright_red": "91",
+    "bright_green": "92",
+    "bright_yellow": "93",
+    "bright_blue": "94",
+    "bright_magenta": "95",
+    "bright_cyan": "96",
+    "bright_white": "97",
+    "bg_black": "40",
+    "bg_red": "41",
+    "bg_green": "42",
+    "bg_yellow": "43",
+    "bg_blue": "44",
+    "bg_magenta": "45",
+    "bg_cyan": "46",
+    "bg_white": "47",
+    "bg_default": "49",
+}
+
+_HIGHLIGHT_DEFAULT: Dict[str, str] = {
+    "FATAL": "bright_red",
+    "ERROR": "bright_red",
+    "WARN": "yellow",
+    "INFO": "green",
+    "DEBUG": "cyan",
+    "TRACE": "black",
+}
+
+
+def _ansi_style(spec: str) -> str:
+    """Turn a comma-separated list of ANSI style names into an escape code."""
+    codes = []
+    for name in spec.replace(" ", "").split(","):
+        if not name:
+            continue
+        code = _ANSI_CODES.get(name.lower())
+        if code:
+            codes.append(code)
+    if not codes:
+        return ""
+    return "\x1b[" + ";".join(codes) + "m"
+
+
+def _wrap_ansi(text: str, spec: str) -> str:
+    code = _ansi_style(spec)
+    if not code or not text:
+        return text
+    return code + text + _ANSI_RESET
+
+
+def _parse_highlight_style(option: Optional[str]) -> Dict[str, str]:
+    """Parse ``{ERROR=red, WARN=blue}`` into a level->color map."""
+    override: Dict[str, str] = {}
+    if not option:
+        return override
+    for pair in option.split(","):
+        if "=" not in pair:
+            continue
+        level, _, color = pair.partition("=")
+        override[level.strip().upper()] = color.strip()
+    return override
 
 
 class Layout:
@@ -263,10 +348,35 @@ class PatternLayout(Layout):
         return "".join(token(record) for token in self._tokens)
 
 
-_LONG_NAMES = [
+_SELECTOR_NAMES = [
+    "equalsIgnoreCase",
+    "variablesNotEmpty",
+    "varsNotEmpty",
+    "notEmpty",
+    "highlight",
+    "replace",
+    "equals",
+    "style",
+]
+
+# Shorthand colour converters, e.g. ``%red{%m}``.
+_COLOR_NAMES = [
+    "default",
+    "magenta",
+    "yellow",
+    "black",
+    "green",
+    "white",
+    "blue",
+    "cyan",
+    "red",
+]
+
+_LONG_NAMES = _SELECTOR_NAMES + [
     "throwable",
     "exception",
     "message",
+    "msg",
     "logger",
     "level",
     "thread",
@@ -287,6 +397,39 @@ _LONG_NAMES = [
 ]
 
 
+def _literal_token(text: str) -> Callable[[LogRecord], str]:
+    def token(_record: LogRecord) -> str:
+        return text
+
+    token._log4p_literal = True  # type: ignore[attr-defined]
+    return token
+
+
+def _read_braced(pattern: str, start: int) -> Tuple[Optional[str], int]:
+    """Read a ``{...}`` group starting at *start*, honouring nesting.
+
+    Returns ``(content, index_after_close)``; ``(None, start)`` if unbalanced.
+    Backslashes escape the following character so ``\\{`` and ``\\}`` are literal.
+    """
+    if start >= len(pattern) or pattern[start] != "{":
+        return None, start
+    depth = 0
+    i = start
+    while i < len(pattern):
+        ch = pattern[i]
+        if ch == "\\" and i + 1 < len(pattern):
+            i += 2
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return pattern[start + 1 : i], i + 1
+        i += 1
+    return None, start
+
+
 def _apply_width(text: str, left: bool, min_width: Optional[int], max_width: Optional[int]) -> str:
     if max_width is not None and len(text) > max_width:
         text = text[len(text) - max_width :]
@@ -304,7 +447,7 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
         if literal:
             text = "".join(literal)
             literal.clear()
-            tokens.append(lambda _r, _t=text: _t)
+            tokens.append(_literal_token(text))
 
     while i < len(pattern):
         ch = pattern[i]
@@ -337,11 +480,18 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
                 max_width = int(pattern[max_start:j])
 
         name = None
-        for candidate in _LONG_NAMES:
-            if pattern.startswith(candidate, j):
+        for candidate in _COLOR_NAMES:
+            end = j + len(candidate)
+            if pattern.startswith(candidate, j) and end < len(pattern) and pattern[end] == "{":
                 name = candidate
-                j += len(candidate)
+                j = end
                 break
+        if name is None:
+            for candidate in _LONG_NAMES:
+                if pattern.startswith(candidate, j):
+                    name = candidate
+                    j += len(candidate)
+                    break
         if name is None:
             if j < len(pattern):
                 name = pattern[j]
@@ -351,16 +501,17 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
                 i += 1
                 continue
 
-        option = None
-        if j < len(pattern) and pattern[j] == "{":
-            end = pattern.find("}", j)
-            if end != -1:
-                option = pattern[j + 1 : end]
-                j = end + 1
+        options: List[str] = []
+        while j < len(pattern) and pattern[j] == "{":
+            content, next_j = _read_braced(pattern, j)
+            if content is None:
+                break
+            options.append(content)
+            j = next_j
 
         flush()
         tokens.append(
-            _make_converter(name, option, left, min_width, max_width, pattern[i:j])
+            _make_converter(name, options, left, min_width, max_width, pattern[i:j])
         )
         i = j
 
@@ -370,7 +521,7 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
 
 def _make_converter(
     name: str,
-    option: Optional[str],
+    options: List[str],
     left: bool,
     min_width: Optional[int],
     max_width: Optional[int],
@@ -381,6 +532,74 @@ def _make_converter(
             return _apply_width(fn(record), left, min_width, max_width)
 
         return token
+
+    option = options[0] if options else None
+
+    if name == "replace":
+        if len(options) < 3:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        regex = re.compile(options[1])
+        replacement = options[2]
+        return wrap(lambda r: regex.sub(replacement, "".join(t(r) for t in sub)))
+
+    if name in ("equals", "equalsIgnoreCase"):
+        if len(options) < 3:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        test = options[1]
+        replacement = options[2]
+        if name == "equalsIgnoreCase":
+            pattern = re.compile(re.escape(test), re.IGNORECASE)
+            return wrap(
+                lambda r: pattern.sub(lambda _m: replacement, "".join(t(r) for t in sub))
+            )
+        return wrap(lambda r: "".join(t(r) for t in sub).replace(test, replacement))
+
+    if name in ("notEmpty", "variablesNotEmpty", "varsNotEmpty"):
+        if not options:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+
+        def not_empty(record: LogRecord) -> str:
+            parts = []
+            empty_variable = False
+            for tok in sub:
+                value = tok(record)
+                if not getattr(tok, "_log4p_literal", False) and value == "":
+                    empty_variable = True
+                parts.append(value)
+            return "" if empty_variable else "".join(parts)
+
+        return wrap(not_empty)
+
+    if name == "style":
+        if len(options) < 2:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        spec = options[1]
+        return wrap(lambda r: _wrap_ansi("".join(t(r) for t in sub), spec))
+
+    if name == "highlight":
+        if not options:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        override = _parse_highlight_style(options[1] if len(options) > 1 else None)
+
+        def highlight(record: LogRecord) -> str:
+            color = override.get(record.level.name) or _HIGHLIGHT_DEFAULT.get(
+                record.level.name, ""
+            )
+            return _wrap_ansi("".join(t(record) for t in sub), color)
+
+        return wrap(highlight)
+
+    if name in _COLOR_NAMES:
+        if not options:
+            return wrap(lambda r: raw)
+        sub = _compile(options[0])
+        color = name
+        return wrap(lambda r: _wrap_ansi("".join(t(r) for t in sub), color))
 
     if name in ("c", "logger"):
         precision = int(option) if option and option.isdigit() else None
@@ -425,5 +644,4 @@ def _make_converter(
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))
 
-    literal = raw
-    return wrap(lambda r: literal)
+    return wrap(lambda r: raw)

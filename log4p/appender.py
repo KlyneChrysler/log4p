@@ -55,6 +55,9 @@ class Appender:
     def addFilter(self, filt: Filter) -> None:
         self._filters.append(filt)
 
+    def getFilters(self) -> List[Filter]:
+        return list(self._filters)
+
     def removeFilter(self, filt: Filter) -> None:
         if filt in self._filters:
             self._filters.remove(filt)

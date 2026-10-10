@@ -197,3 +197,62 @@ def test_html_layout_header_body_footer():
     assert "hello world" in row
     assert layout.footer().startswith("</tbody>")
 
+
+def test_pattern_msg_alias():
+    assert PatternLayout("%msg").format(make_record()) == "hello world"
+
+
+def test_pattern_replace_selector():
+    assert PatternLayout(r"%replace{%msg}{\s}{_}").format(make_record()) == "hello_world"
+    assert (
+        PatternLayout(r"%replace{%logger %msg}{\.}{/}").format(make_record())
+        == "app/db hello world"
+    )
+
+
+def test_pattern_equals_selector():
+    tagged = make_record()
+    from log4p import getMarker
+
+    tagged.marker = getMarker("SQL")
+    assert PatternLayout("%equals{[%marker]}{[SQL]}{!}").format(tagged) == "!"
+    assert PatternLayout("%equals{[%marker]}{[NO]}{!}").format(tagged) == "[SQL]"
+
+
+def test_pattern_equals_ignore_case_selector():
+    tagged = make_record()
+    from log4p import getMarker
+
+    tagged.marker = getMarker("Sql")
+    assert PatternLayout("%equalsIgnoreCase{%marker}{sql}{OK}").format(tagged) == "OK"
+
+
+def test_pattern_not_empty_selector():
+    from log4p import getMarker
+
+    record = make_record()
+    assert PatternLayout("%notEmpty{[%marker]}END").format(record) == "END"
+    record.marker = getMarker("SQL")
+    assert PatternLayout("%notEmpty{[%marker]}END").format(record) == "[SQL]END"
+
+
+def test_pattern_style_selector():
+    out = PatternLayout("%style{%msg}{bold,cyan}").format(make_record())
+    assert out == "\x1b[1;36mhello world\x1b[0m"
+
+
+def test_pattern_color_shorthand():
+    assert PatternLayout("%red{%msg}").format(make_record()) == "\x1b[31mhello world\x1b[0m"
+
+
+def test_pattern_highlight_by_level():
+    record = make_record()
+    assert PatternLayout("%highlight{%p}").format(record) == "\x1b[32mINFO\x1b[0m"
+    override = PatternLayout("%highlight{%-5p}{ERROR=red,INFO=blue}").format(record)
+    assert override == "\x1b[34mINFO \x1b[0m"
+
+
+def test_pattern_replace_missing_args_is_literal():
+    assert PatternLayout("%replace{%msg}").format(make_record()) == "%replace{%msg}"
+
+

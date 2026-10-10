@@ -98,6 +98,32 @@ The full log4j conversion vocabulary is supported:
 Format modifiers work: `%-5p` (left-justify, width 5), `%5p` (right-justify),
 `%.30m` (truncate to 30), `%-7.15c` (both).
 
+Selectors transform the result of an inner pattern (nested braces are handled):
+
+| Selector | Meaning |
+|----------|---------|
+| `%replace{pattern}{regex}{substitution}` | Replace regex matches in *pattern* |
+| `%equals{pattern}{test}{substitution}` | Replace literal *test* occurrences in *pattern* |
+| `%equalsIgnoreCase{pattern}{test}{substitution}` | Case-insensitive variant |
+| `%notEmpty{pattern}` | Output *pattern* only if its variables are all non-empty |
+
+```python
+PatternLayout(r"%replace{%msg}{\s}{_}")      # spaces -> underscores
+PatternLayout("%notEmpty{[%marker]} %msg")   # hide "[marker]" when no marker
+```
+
+ANSI colour is supported for consoles that understand escapes:
+
+| Converter | Meaning |
+|-----------|---------|
+| `%highlight{pattern}{LEVEL=color, ...}` | Colour by level (FATAL/ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan, TRACE=black) |
+| `%style{pattern}{name, ...}` | Apply a style (`bold`, `underline`, `cyan`, `bg_red`, ...) |
+| `%red{pattern}`, `%green{...}`, ... | Colour shorthand |
+
+```python
+PatternLayout("%highlight{%-5p} %style{%logger}{bold,cyan} %msg%n")
+```
+
 Other layouts:
 
 | Layout | Output |
@@ -137,12 +163,25 @@ AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
 Each appender takes an optional `threshold` and any number of filters:
 
 ```python
-from log4p import ThresholdFilter, LevelRangeFilter, RegexFilter, MarkerFilter
+from log4p import (
+    ThresholdFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
+    AndFilter, OrFilter, NotFilter,
+)
 
 appender.addFilter(ThresholdFilter("INFO"))
 appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
 appender.addFilter(MarkerFilter("SQL"))          # only records tagged SQL
+
+# Compose filters:
+appender.addFilter(AndFilter(ThresholdFilter("WARN"),
+                             RegexFilter(r"db-", field="name")))
+appender.addFilter(OrFilter(RegexFilter(r"audit"), RegexFilter(r"billing")))
+appender.addFilter(NotFilter(RegexFilter(r"healthcheck", field="message")))
 ```
+
+`AndFilter` accepts only when every child accepts (any denial denies);
+`OrFilter` accepts when any child accepts; `NotFilter` inverts one child.
+All three build from config with nested `filters` / `filter` keys.
 
 ### Error handlers
 
@@ -280,8 +319,9 @@ config.basicConfig(level="INFO", filename="app.log")
 ```
 
 See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
-`demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`). Captured output for
-the demo lives in [`examples/output.md`](examples/output.md).
+`demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`,
+`patterns_and_filters.py`). Captured output for the demo lives in
+[`examples/output.md`](examples/output.md).
 
 ## Why "log4p"?
 
