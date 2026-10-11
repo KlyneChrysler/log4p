@@ -8,6 +8,10 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `NullAppender` (discard-all sink).
+- Logger level checks: `isTraceEnabled` / `isDebugEnabled` / `isInfoEnabled` /
+  `isWarnEnabled` / `isErrorEnabled` / `isFatalEnabled`.
+- `%X{key:-default}` and `%K{key:-default}` converters with fallback values.
 - Human-readable size strings for `maxBytes` (e.g. `"10MB"`, `"512KB"`).
 - `onStartup=True` on rolling appenders to rotate an existing non-empty file on
   first open (`OnStartupTriggeringPolicy`).

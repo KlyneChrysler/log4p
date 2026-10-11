@@ -595,4 +595,17 @@ def test_dictconfig_on_startup_and_size_string(tmp_path):
     assert app.onStartup is True
 
 
+def test_dictconfig_null_appender():
+    from log4p import NullAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["null"]},
+            "appenders": {"null": {"class": "NullAppender"}},
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, NullAppender)
+
+
 

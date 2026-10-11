@@ -84,8 +84,8 @@ The full log4j conversion vocabulary is supported:
 | `%L` / `%line` | Source line number | `42` |
 | `%M` / `%method` | Source function | `connect` |
 | `%C` / `%class` | Source module | `db` |
-| `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key) | `r-1` |
-| `%K{key}` | Map/context value (or whole map with no key) | `r-1` |
+| `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key); `%X{key:-def}` for a default | `r-1` |
+| `%K{key}` | Map/context value (or whole map); `%K{key:-def}` for a default | `r-1` |
 | `%x` / `%ndc` | NDC stack | `outer inner` |
 | `%marker` | Marker attached to the record | `SQL` |
 | `%stack` | Stack trace from `stack_info=True` | |
@@ -155,6 +155,7 @@ from log4p import (
     SocketAppender,
     SyslogAppender,
     SMTPAppender,
+    NullAppender,
 )
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
@@ -171,6 +172,7 @@ SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
 SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
 SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
              triggerLevel="ERROR")
+NullAppender()                               # discard everything
 ```
 
 - `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
@@ -194,6 +196,11 @@ SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
 - `SMTPAppender` keeps a ring buffer of recent events and emails them (with the
   triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
   Supports `starttls`, `ssl`, and `username`/`password`.
+- `NullAppender` discards every event (a `/dev/null` sink).
+
+Loggers expose the usual level checks: `logger.isDebugEnabled()`,
+`isInfoEnabled()`, `isWarnEnabled()`, `isErrorEnabled()`, `isFatalEnabled()`,
+`isTraceEnabled()`.
 
 Each appender takes an optional `threshold` and any number of filters:
 

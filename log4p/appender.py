@@ -721,3 +721,10 @@ class SizeAndTimeBasedAppender(TimedRotatingFileAppender):
                 os.remove(stale)
             except OSError:  # pragma: no cover
                 pass
+
+
+class NullAppender(Appender):
+    """Discard every event (log4j's ``NullAppender``) - a ``/dev/null`` sink."""
+
+    def append(self, record: LogRecord) -> None:
+        pass

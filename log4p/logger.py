@@ -152,6 +152,25 @@ class Logger:
         kwargs.setdefault("exc_info", True)
         self.error(msg, *args, **kwargs)
 
+    # -- level checks --------------------------------------------------
+    def isTraceEnabled(self) -> bool:
+        return self.isEnabledFor(TRACE)
+
+    def isDebugEnabled(self) -> bool:
+        return self.isEnabledFor(DEBUG)
+
+    def isInfoEnabled(self) -> bool:
+        return self.isEnabledFor(INFO)
+
+    def isWarnEnabled(self) -> bool:
+        return self.isEnabledFor(WARN)
+
+    def isErrorEnabled(self) -> bool:
+        return self.isEnabledFor(ERROR)
+
+    def isFatalEnabled(self) -> bool:
+        return self.isEnabledFor(FATAL)
+
     # -- internals -----------------------------------------------------
     def _log(
         self,

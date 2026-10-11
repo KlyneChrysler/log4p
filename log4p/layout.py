@@ -341,7 +341,8 @@ class PatternLayout(Layout):
         %M / %method              source function name
         %C / %class               source module name
         %X{key} / %mdc{key}       MDC value (or whole map when no key)
-        %K{key}                   map/context value (or whole map)
+        %X{key:-default}          MDC value with default
+        %K{key} / %K{key:-default} map/context value (or whole map)
         %x / %ndc                 NDC stack joined by spaces
         %h / %host                hostname
         %n                        platform newline
@@ -707,10 +708,16 @@ def _make_converter(
         return wrap(lambda r: r.getExceptionText() or "")
     if name in ("X", "mdc"):
         if option:
+            if ":-" in option:
+                key, _, default = option.partition(":-")
+                return wrap(lambda r: str(r.context.get(key, default)))
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))
     if name == "K":
         if option:
+            if ":-" in option:
+                key, _, default = option.partition(":-")
+                return wrap(lambda r: str(r.context.get(key, default)))
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))
 
