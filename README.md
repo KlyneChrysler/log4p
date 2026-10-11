@@ -327,6 +327,19 @@ MDC.clear()
 
 Both are isolated per thread / asyncio task.
 
+## Structured messages
+
+Pass a `MapMessage` instead of a string to emit typed key/value data. JSON and
+logfmt layouts flatten the data into top-level fields; `%m` renders
+`key="value"` pairs.
+
+```python
+from log4p import MapMessage, JSONLayout
+
+logger.info(MapMessage({"user": "bob", "id": 7}))
+# -> {"time": ..., "message": "user=\"bob\" id=\"7\"", "user": "bob", "id": 7, ...}
+```
+
 ## Markers
 
 Markers are named (optionally hierarchical) tags you attach per call and filter on

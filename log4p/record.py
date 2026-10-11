@@ -97,13 +97,17 @@ class LogRecord:
     def getMessage(self) -> str:
         """Merge the message template with its arguments (``%`` style)."""
         if self._formatted is None:
-            msg = str(self.message)
-            if self.args:
-                try:
-                    msg = msg % self.args
-                except Exception:  # pragma: no cover - defensive
-                    msg = f"{msg} {self.args}"
-            self._formatted = msg
+            formatter = getattr(self.message, "getFormattedMessage", None)
+            if callable(formatter):
+                self._formatted = formatter()
+            else:
+                msg = str(self.message)
+                if self.args:
+                    try:
+                        msg = msg % self.args
+                    except Exception:  # pragma: no cover - defensive
+                        msg = f"{msg} {self.args}"
+                self._formatted = msg
         return self._formatted
 
     def getExceptionText(self) -> Optional[str]:
@@ -128,6 +132,11 @@ class LogRecord:
         }
         if self.context:
             data["context"] = self.context
+        get_data = getattr(self.message, "getData", None)
+        if callable(get_data):
+            for key, value in get_data().items():
+                if key not in data:
+                    data[key] = value
         if self.ndc:
             data["ndc"] = self.ndc
         if self.marker is not None:

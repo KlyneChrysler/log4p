@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Structured messages: `MapMessage`, `StringMapMessage`, and
+  `StructuredDataMessage`. Their key/value data is flattened into top-level
+  fields by `JSONLayout`/`LogfmtLayout`, and `%m` renders `key="value"` pairs.
 - MDC/NDC parity helpers: `MDC.putAll`/`setContext`/`containsKey`/`isEmpty`/
   `getContext`/`getImmutableContext`, `NDC.remove`/`getStack`/`isEmpty`;
   `Logger.isEnabled(level)` and `LoggerManager.exists(name)`.

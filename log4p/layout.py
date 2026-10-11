@@ -274,6 +274,10 @@ class LogfmtLayout(Layout):
             pairs.append(("marker", str(record.marker)))
         if record.ndc:
             pairs.append(("ndc", record.ndc))
+        get_data = getattr(record.message, "getData", None)
+        if callable(get_data):
+            for key, value in get_data().items():
+                pairs.append((key, value))
         for key, value in record.context.items():
             pairs.append((key, value))
         if record.exc_info:
