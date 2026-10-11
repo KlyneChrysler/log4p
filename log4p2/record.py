@@ -49,6 +49,7 @@ class LogRecord:
         "sequence",
         "_formatted",
         "exception_text",
+        "_wal_id",
     )
 
     def __init__(
@@ -95,6 +96,7 @@ class LogRecord:
         self.sequence = next(_SEQUENCE)
         self._formatted: Optional[str] = None
         self.exception_text: Optional[str] = None
+        self._wal_id: int = 0
 
     def getMessage(self) -> str:
         """Merge the message template with its arguments (``%`` style)."""

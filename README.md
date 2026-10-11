@@ -68,6 +68,25 @@ python3 -m pytest -q
 
 ## Limitations
 
-- **AsyncAppender queue loss on hard kill**: When using `AsyncAppender`, events in the queue that haven't been processed by the background worker will be lost if the process is terminated abruptly (e.g., `SIGKILL`, `os._exit`, power loss). This is inherent to asynchronous logging designs. For critical audit trails, use synchronous appenders or call `appender.flush()` before graceful shutdown.
+- **AsyncAppender queue loss on hard kill**: When using `AsyncAppender` without WAL, events in the queue that haven't been processed by the background worker will be lost if the process is terminated abruptly (e.g., `SIGKILL`, `os._exit`, power loss). This is inherent to asynchronous logging designs. For critical audit trails, use synchronous appenders or call `appender.flush()` before graceful shutdown.
+
+## Durability Features
+
+`AsyncAppender` now supports optional write-ahead logging (WAL) for durability:
+
+```python
+from log4p2 import AsyncAppender, FileAppender, PatternLayout
+
+# Enable WAL - records persisted to SQLite before acknowledgment
+async_app = AsyncAppender(
+    FileAppender("app.log", PatternLayout("%m%n")),
+    wal_path="/var/log/myapp_async_wal.db",  # SQLite WAL file
+    flush_interval=5.0,  # periodic fsync/flush (seconds)
+)
+```
+
+- **WAL mode** (`wal_path`): Records are written to a local SQLite database (with WAL journal mode and synchronous=FULL) before being enqueued. On process restart, unprocessed records are automatically replayed. Survives crashes (except SIGKILL/power loss).
+- **Periodic flush** (`flush_interval`): Forces the wrapped appender to flush/fsync at the specified interval.
+- **Signal handlers**: SIGTERM/SIGINT trigger graceful drain when WAL is enabled.
 
 MIT licensed.

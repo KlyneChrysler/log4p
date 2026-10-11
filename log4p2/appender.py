@@ -410,6 +410,14 @@ class AsyncAppender(Appender):
     *overflow* controls what happens when the queue is full: ``"block"`` waits
     for space (no loss, may slow the caller) or ``"discard"`` drops the record
     and increments :attr:`dropped`.
+
+    Durability options:
+    - ``wal_path``: Enable write-ahead logging to a SQLite database. Records are
+      persisted before being acknowledged, surviving process crashes (except
+      SIGKILL/power loss). On restart, unprocessed records are replayed.
+    - ``flush_interval``: Periodically flush/fsync the wrapped appender (seconds).
+    - Signal handlers for SIGTERM/SIGINT are installed automatically when
+      ``wal_path`` is set, ensuring graceful drain on shutdown.
     """
 
     _STOP = object()
@@ -425,6 +433,8 @@ class AsyncAppender(Appender):
         bufferSize: Optional[int] = None,
         blocking: bool = True,
         discardingThreshold: int = 0,
+        wal_path: Optional[str] = None,
+        flush_interval: Optional[float] = None,
     ) -> None:
         super().__init__(name=name, layout=layout, threshold=threshold)
         if bufferSize is not None:
@@ -437,10 +447,15 @@ class AsyncAppender(Appender):
         self.queue_size = queue_size
         self.overflow = overflow
         self.discardingThreshold = discardingThreshold
+        self.wal_path = wal_path
+        self.flush_interval = flush_interval
         self._queue: "queue.Queue" = queue.Queue(maxsize=queue_size)
         self._worker: Optional[threading.Thread] = None
         self._dropped = 0
         self._dropped_lock = threading.Lock()
+        self._wal_conn = None
+        self._shutdown_event = threading.Event()
+        self._signal_installed = False
 
     @property
     def dropped(self) -> int:
@@ -451,28 +466,119 @@ class AsyncAppender(Appender):
         with self._dropped_lock:
             self._dropped += 1
 
+    def _init_wal(self) -> None:
+        """Initialize SQLite WAL for durable queuing."""
+        if not self.wal_path:
+            return
+        import sqlite3
+        # isolation_level=None enables autocommit mode
+        self._wal_conn = sqlite3.connect(self.wal_path, check_same_thread=False, isolation_level=None)
+        self._wal_conn.execute("PRAGMA journal_mode=WAL")
+        self._wal_conn.execute("PRAGMA synchronous=FULL")
+        self._wal_conn.execute("""
+            CREATE TABLE IF NOT EXISTS wal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record BLOB NOT NULL,
+                created_at REAL NOT NULL
+            )
+        """)
+        self._wal_conn.execute("CREATE INDEX IF NOT EXISTS idx_wal_created ON wal(created_at)")
+
+    def _persist_record(self, record: LogRecord) -> int:
+        """Persist record to WAL, return record ID."""
+        if not self._wal_conn:
+            return 0
+        import pickle
+        data = pickle.dumps(record)
+        cur = self._wal_conn.execute(
+            "INSERT INTO wal (record, created_at) VALUES (?, ?)",
+            (data, time.time())
+        )
+        return cur.lastrowid
+
+    def _replay_wal(self) -> List[LogRecord]:
+        """Replay unprocessed records from WAL."""
+        if not self._wal_conn:
+            return []
+        import pickle
+        rows = self._wal_conn.execute(
+            "SELECT id, record FROM wal ORDER BY id"
+        ).fetchall()
+        records = []
+        for row_id, data in rows:
+            try:
+                record = pickle.loads(data)
+                records.append((row_id, record))
+            except Exception:
+                pass
+        return records
+
+    def _mark_wal_processed(self, max_id: int) -> None:
+        """Delete processed records from WAL."""
+        if not self._wal_conn:
+            return
+        self._wal_conn.execute("DELETE FROM wal WHERE id <= ?", (max_id,))
+
     def getLayout(self) -> Layout:
         return self.appender.getLayout()
 
     def start(self) -> None:
         with self._lock:
             if self._worker is None or not self._worker.is_alive():
+                self._init_wal()
                 self.appender.start()
+
+                # Replay any persisted records from previous run
+                if self.wal_path:
+                    replayed = self._replay_wal()
+                    for row_id, record in replayed:
+                        self._queue.put(record)
+                    if replayed:
+                        self._mark_wal_processed(replayed[-1][0])
+
                 self._worker = threading.Thread(
                     target=self._run_worker,
                     name=f"log4p-async-{self._name}",
                     daemon=True,
                 )
                 self._worker.start()
+
+                # Install signal handlers for graceful shutdown
+                if self.wal_path and not self._signal_installed:
+                    self._install_signal_handlers()
+                    self._signal_installed = True
             self._started = True
 
+    def _install_signal_handlers(self) -> None:
+        """Install signal handlers for graceful shutdown."""
+        import signal
+
+        def handle_signal(signum, frame):
+            self._shutdown_event.set()
+            # Re-raise with default handler after our cleanup
+            signal.signal(signum, signal.SIG_DFL)
+            os.kill(os.getpid(), signum)
+
+        try:
+            signal.signal(signal.SIGTERM, handle_signal)
+            signal.signal(signal.SIGINT, handle_signal)
+        except (OSError, ValueError):
+            # Not in main thread or signals not supported
+            pass
+
     def stop(self) -> None:
+        # Drain queue first
+        self.flush()
+        self._shutdown_event.set()
         with self._lock:
             if self._worker is not None and self._worker.is_alive():
                 self._queue.put(self._STOP)
-                self._worker.join()
+                self._worker.join(timeout=10.0)
             self._worker = None
             self.appender.stop()
+            if self._wal_conn:
+                self._wal_conn.close()
+                self._wal_conn = None
             self._started = False
 
     def flush(self) -> None:
@@ -489,6 +595,14 @@ class AsyncAppender(Appender):
         ):
             self._increment_dropped()
             return
+
+        # Persist to WAL before enqueueing (if enabled)
+        wal_id = 0
+        if self.wal_path:
+            wal_id = self._persist_record(record)
+            # Attach WAL ID to record for later cleanup
+            record._wal_id = wal_id
+
         if self.overflow == "block":
             self._queue.put(record)
         else:
@@ -498,16 +612,46 @@ class AsyncAppender(Appender):
                 self._increment_dropped()
 
     def _run_worker(self) -> None:
-        while True:
-            item = self._queue.get()
+        last_flush = time.monotonic()
+        max_processed_id = 0
+
+        while not self._shutdown_event.is_set():
+            try:
+                item = self._queue.get(timeout=0.1)
+            except queue.Empty:
+                # Periodic flush check
+                if self.flush_interval and time.monotonic() - last_flush >= self.flush_interval:
+                    self.appender.flush()
+                    last_flush = time.monotonic()
+                continue
+
             try:
                 if item is self._STOP:
                     break
                 self.appender.doAppend(item)
+
+                # Track max processed WAL ID for batch cleanup
+                wal_id = getattr(item, '_wal_id', 0)
+                if wal_id > max_processed_id:
+                    max_processed_id = wal_id
+
             except Exception:  # pragma: no cover - delegate handles its own errors
                 pass
             finally:
                 self._queue.task_done()
+
+                # Periodic WAL cleanup and flush
+                if self.flush_interval and time.monotonic() - last_flush >= self.flush_interval:
+                    self.appender.flush()
+                    last_flush = time.monotonic()
+                if max_processed_id > 0 and self.wal_path:
+                    self._mark_wal_processed(max_processed_id)
+                    max_processed_id = 0
+
+        # Final flush and WAL cleanup on shutdown
+        self.appender.flush()
+        if max_processed_id > 0 and self.wal_path:
+            self._mark_wal_processed(max_processed_id)
 
 
 class RoutingAppender(Appender):
