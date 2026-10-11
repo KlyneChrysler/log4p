@@ -50,10 +50,11 @@ from .appender import (
     Appender,
     AsyncAppender,
     ConsoleAppender,
-    FileAppender,
-    NullAppender,
-    RotatingFileAppender,
-    SizeAndTimeBasedAppender,
+        FileAppender,
+        NullAppender,
+        RotatingFileAppender,
+        RoutingAppender,
+        SizeAndTimeBasedAppender,
     TimedRotatingFileAppender,
 )
 from .error import ErrorHandler, FallbackErrorHandler
@@ -102,6 +103,7 @@ _REGISTRY = {
         RotatingFileAppender,
         TimedRotatingFileAppender,
         SizeAndTimeBasedAppender,
+        RoutingAppender,
         AsyncAppender,
         RewriteAppender,
         RewritePolicy,
@@ -252,6 +254,20 @@ def _build_appender(spec: Any, built: Dict[str, Appender]) -> Appender:
                 f"async appender references {delegate!r}, which must be defined first"
             )
         spec["appender"] = built[delegate]
+
+    routes = spec.get("routes")
+    if isinstance(routes, dict):
+        resolved = {}
+        for route, target in routes.items():
+            if isinstance(target, str):
+                if target not in built:
+                    raise ValueError(
+                        f"routing appender references {target!r}, which must be "
+                        "defined first"
+                    )
+                target = built[target]
+            resolved[route] = target
+        spec["routes"] = resolved
 
     layout = _build_layout(spec.pop("layout", None))
     filters = spec.pop("filters", None) or []

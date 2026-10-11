@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `RoutingAppender` routes each event to a child appender selected by a context
+  value (with an optional default route).
 - `ContextMapFilter` (MDC/context key-value matching, `and`/`or`) and
   `DynamicThresholdFilter` (per-context-value threshold).
 - Custom levels in config via a top-level `levels:` map.

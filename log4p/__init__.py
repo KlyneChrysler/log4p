@@ -19,6 +19,7 @@ from .appender import (
     FileAppender,
     NullAppender,
     RotatingFileAppender,
+    RoutingAppender,
     SizeAndTimeBasedAppender,
     TimedRotatingFileAppender,
 )
@@ -107,6 +108,7 @@ __all__ = [
     "FileAppender",
     "NullAppender",
     "RotatingFileAppender",
+    "RoutingAppender",
     "TimedRotatingFileAppender",
     "SizeAndTimeBasedAppender",
     "RewritePolicy",

@@ -481,6 +481,57 @@ class AsyncAppender(Appender):
                 self._queue.task_done()
 
 
+class RoutingAppender(Appender):
+    """Route each event to a child appender chosen by a context value.
+
+    *routes* maps a context value to an appender. When the record's value for
+    *key* has no route, *default* names the fallback route (a key in *routes*);
+    unmatched events are dropped when no default is set.
+    """
+
+    def __init__(
+        self,
+        routes,
+        key: str = "route",
+        default: Optional[str] = None,
+        layout: Optional[Layout] = None,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(name=name, layout=layout, threshold=threshold)
+        self.routes = dict(routes)
+        self.key = key
+        self.default = default
+
+    def start(self) -> None:
+        with self._lock:
+            for appender in self.routes.values():
+                appender.start()
+            self._started = True
+
+    def stop(self) -> None:
+        with self._lock:
+            for appender in self.routes.values():
+                appender.stop()
+            self._started = False
+
+    def flush(self) -> None:
+        for appender in self.routes.values():
+            appender.flush()
+
+    def getRoute(self, record: LogRecord) -> Optional[Appender]:
+        value = str(record.context.get(self.key, ""))
+        appender = self.routes.get(value)
+        if appender is None and self.default is not None:
+            appender = self.routes.get(self.default)
+        return appender
+
+    def append(self, record: LogRecord) -> None:
+        appender = self.getRoute(record)
+        if appender is not None:
+            appender.doAppend(record)
+
+
 class TimedRotatingFileAppender(FileAppender):
     """Roll the file on a time schedule (like log4j's ``TimeBasedRollingPolicy``).
 
