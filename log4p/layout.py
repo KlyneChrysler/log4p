@@ -574,6 +574,7 @@ _SELECTOR_NAMES = [
     "replace",
     "equals",
     "encode",
+    "enc",
     "style",
 ]
 
@@ -610,6 +611,7 @@ _LONG_NAMES = _SELECTOR_NAMES + [
     "location",
     "method",
     "class",
+    "map",
     "mdc",
     "ndc",
     "markerSimpleName",
@@ -645,6 +647,16 @@ def _split_default(expr: str) -> Tuple[str, Optional[str]]:
         name, _, default = expr.partition(":-")
         return name, default
     return expr, None
+
+
+def _message_data(record: LogRecord) -> Dict[str, object]:
+    """Return the key/value payload of a map-style message, else ``{}``."""
+    getter = getattr(record.message, "getData", None)
+    if callable(getter):
+        data = getter()
+        if isinstance(data, dict):
+            return data
+    return {}
 
 
 def _make_lookup(content: str) -> Callable[[LogRecord], str]:
@@ -952,7 +964,7 @@ def _make_converter(
 
         return wrap(truncate)
 
-    if name == "encode":
+    if name in ("encode", "enc"):
         if len(options) < 2:
             return wrap(lambda r: raw)
         sub = _compile(options[0])
@@ -1055,5 +1067,13 @@ def _make_converter(
                 return wrap(lambda r: str(r.context.get(key, default)))
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))
+
+    if name == "map":
+        if option:
+            if ":-" in option:
+                key, _, default = option.partition(":-")
+                return wrap(lambda r: str(_message_data(r).get(key, default)))
+            return wrap(lambda r: str(_message_data(r).get(option, "")))
+        return wrap(lambda r: json.dumps(_message_data(r), default=str))
 
     return wrap(lambda r: raw)

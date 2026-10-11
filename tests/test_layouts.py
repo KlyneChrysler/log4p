@@ -326,6 +326,24 @@ def test_pattern_map_converter():
     assert json.loads(PatternLayout("%K").format(record)) == {"req": "r-1"}
 
 
+def test_pattern_message_map_converter():
+    from log4p import MapMessage
+
+    rec = LogRecord(name="a", level=Level.INFO, message=MapMessage({"svc": "checkout"}))
+    assert PatternLayout("%map{svc}").format(rec) == "checkout"
+    assert PatternLayout("%map{missing:-none}").format(rec) == "none"
+    assert json.loads(PatternLayout("%map").format(rec)) == {"svc": "checkout"}
+    plain = make_record()
+    assert PatternLayout("%map{svc}").format(plain) == ""
+
+
+def test_pattern_enc_alias():
+    rec = LogRecord(name="a", level=Level.INFO, message="<x>&")
+    assert PatternLayout("%enc{%m}{HTML}").format(rec) == "&lt;x&gt;&amp;"
+    assert PatternLayout("%encode{%m}{HTML}").format(rec) == "&lt;x&gt;&amp;"
+
+
+
 def test_pattern_location_converter():
     record = make_record()
     assert PatternLayout("%l").format(record) == "module.do_work(module.py:42)"

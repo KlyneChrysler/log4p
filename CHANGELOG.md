@@ -12,6 +12,8 @@ All notable changes to log4p are documented here. This project follows
   syslog lines and can attach to any appender; `SyslogAppender` now uses them.
 - `PatternLayout` gains `alwaysWriteExceptions` (default `True`) plus optional
   `header` / `footer` strings written by stream appenders.
+- `%map{key}` pattern converter reads `MapMessage` fields, and `%enc` is an
+  alias for `%encode`.
 - `CallableFilter` matches on an arbitrary Python predicate (log4j2
   `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the

@@ -85,7 +85,8 @@ The full log4j conversion vocabulary is supported:
 | `%M` / `%method` | Source function | `connect` |
 | `%C` / `%class` | Source module | `db` |
 | `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key); `%X{key:-def}` for a default | `r-1` |
-| `%K{key}` | Map/context value (or whole map); `%K{key:-def}` for a default | `r-1` |
+| `%K{key}` | Context value (or whole map); `%K{key:-def}` for a default | `r-1` |
+| `%map{key}` | `MapMessage` field (or whole map); `%map{key:-def}` for a default | `checkout` |
 | `%x` / `%ndc` | NDC stack | `outer inner` |
 | `%marker` / `%markerSimpleName` | Marker attached to the record | `SQL` |
 | `%stack` | Stack trace from `stack_info=True` | |
@@ -125,7 +126,7 @@ Selectors transform the result of an inner pattern (nested braces are handled):
 | `%equalsIgnoreCase{pattern}{test}{substitution}` | Case-insensitive variant |
 | `%notEmpty{pattern}` | Output *pattern* only if its variables are all non-empty |
 | `%maxLen{pattern}{N}` | Truncate to *N* chars (adds `...` when *N* > 20) |
-| `%encode{pattern}{HTML\|XML\|JSON\|CRLF}` | Escape the inner result |
+| `%encode{pattern}{HTML\|XML\|JSON\|CRLF}` | Escape the inner result (`%enc` is an alias) |
 
 ```python
 PatternLayout(r"%replace{%msg}{\s}{_}")      # spaces -> underscores
