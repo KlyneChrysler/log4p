@@ -271,3 +271,55 @@ def test_burst_filter_level_bypasses_limit():
     assert filt.decide(record(Level.ERROR)) == FilterReply.NEUTRAL
     assert filt.decide(record(Level.INFO)) == FilterReply.NEUTRAL
     assert filt.decide(record(Level.INFO)) == FilterReply.DENY
+
+
+def _sd_record(data=None, type=""):
+    from log4p import StructuredDataMessage
+
+    rec = record()
+    rec.message = StructuredDataMessage(data or {}, type=type)
+    return rec
+
+
+def test_structured_data_filter_matches_properties():
+    from log4p import StructuredDataFilter
+
+    filt = StructuredDataFilter(properties={"user": "alice"})
+    assert filt.decide(_sd_record({"user": "alice"})) == FilterReply.NEUTRAL
+    assert filt.decide(_sd_record({"user": "bob"})) == FilterReply.DENY
+
+
+def test_structured_data_filter_ignores_plain_records():
+    from log4p import StructuredDataFilter
+
+    filt = StructuredDataFilter(properties={"user": "alice"})
+    assert filt.decide(record()) == FilterReply.DENY
+
+
+def test_structured_data_filter_type_and_operator():
+    from log4p import StructuredDataFilter
+
+    filt = StructuredDataFilter(
+        properties={"a": "1", "b": "2"}, type="audit", operator="or"
+    )
+    assert filt.decide(_sd_record({"a": "1"}, type="audit")) == FilterReply.NEUTRAL
+    assert filt.decide(_sd_record({"a": "1"}, type="metric")) == FilterReply.DENY
+    assert filt.decide(_sd_record({"c": "3"}, type="audit")) == FilterReply.DENY
+
+
+def test_structured_data_filter_no_properties_matches_any_sd():
+    from log4p import StructuredDataFilter
+
+    filt = StructuredDataFilter()
+    assert filt.decide(_sd_record({"x": "1"})) == FilterReply.NEUTRAL
+    assert filt.decide(record()) == FilterReply.DENY
+
+
+def test_structured_data_filter_invalid_operator():
+    import pytest
+
+    from log4p import StructuredDataFilter
+
+    with pytest.raises(ValueError):
+        StructuredDataFilter(properties={}, operator="xor")
+

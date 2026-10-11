@@ -15,6 +15,7 @@ from enum import IntEnum
 from typing import Union
 
 from .levels import Level, getLevel
+from .message import StructuredDataMessage
 from .record import LogRecord
 
 
@@ -228,6 +229,48 @@ class ContextMapFilter(Filter):
             return self._reply(False)
         checks = (
             str(record.context.get(key, "")) == str(value)
+            for key, value in self.properties.items()
+        )
+        matched = all(checks) if self.operator == "and" else any(checks)
+        return self._reply(matched)
+
+
+class StructuredDataFilter(Filter):
+    """Match :class:`StructuredDataMessage` records (log4j's filter of the same
+    name).
+
+    *properties* maps structured-data keys to expected values; *type* optionally
+    restricts matches to a structured-data type. With ``operator="and"``
+    (default) every pair must match; with ``"or"`` any single pair suffices.
+    With no properties and no type, any structured-data record matches.
+    """
+
+    def __init__(
+        self,
+        properties=None,
+        type=None,
+        operator: str = "and",
+        onMatch="neutral",
+        onMismatch="deny",
+    ) -> None:
+        super().__init__(onMatch, onMismatch)
+        self.properties = dict(properties or {})
+        self.type = type
+        op = operator.lower()
+        if op not in ("and", "or"):
+            raise ValueError("operator must be 'and' or 'or'")
+        self.operator = op
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        message = record.message
+        if not isinstance(message, StructuredDataMessage):
+            return self._reply(False)
+        if self.type is not None and message.type != self.type:
+            return self._reply(False)
+        if not self.properties:
+            return self._reply(True)
+        checks = (
+            str(message.data.get(key, "")) == str(value)
             for key, value in self.properties.items()
         )
         matched = all(checks) if self.operator == "and" else any(checks)

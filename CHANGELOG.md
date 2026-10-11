@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `StructuredDataFilter` matches `StructuredDataMessage` events by
+  structured-data type and key/value pairs (`and`/`or`).
 - `MemoryAppender` captures rendered events and records in memory (with an
   optional `maxSize` ring limit) for tests and assertions.
 - `ConsoleAppender` gains an `immediateFlush` option (default `True`).

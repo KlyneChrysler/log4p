@@ -75,6 +75,7 @@ from .filter import (
     NotFilter,
     OrFilter,
     RegexFilter,
+    StructuredDataFilter,
     ThresholdFilter,
 )
 from .layout import (
@@ -135,13 +136,14 @@ _REGISTRY = {
         AndFilter,
         OrFilter,
         NotFilter,
-    AcceptAllFilter,
-    DenyAllFilter,
-    ContextMapFilter,
-    DynamicThresholdFilter,
-    NoMarkerFilter,
-    BurstFilter,
-    ErrorHandler,
+        AcceptAllFilter,
+        DenyAllFilter,
+        ContextMapFilter,
+        StructuredDataFilter,
+        DynamicThresholdFilter,
+        NoMarkerFilter,
+        BurstFilter,
+        ErrorHandler,
         FallbackErrorHandler,
     )
 }

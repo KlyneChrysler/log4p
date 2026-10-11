@@ -959,4 +959,39 @@ def test_dictconfig_burst_filter():
     assert built.maxBurst == 10
 
 
+def test_dictconfig_structured_data_filter():
+    from log4p import StructuredDataFilter, StructuredDataMessage
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {
+                            "class": "StructuredDataFilter",
+                            "properties": {"user": "alice"},
+                            "type": "audit",
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, StructuredDataFilter)
+    assert built.type == "audit"
+    getRootLogger().info(StructuredDataMessage({"user": "alice"}, type="audit"))
+    getRootLogger().info(StructuredDataMessage({"user": "bob"}, type="audit"))
+    getRootLogger().info("plain")
+    assert "alice" in buf.getvalue()
+    assert "bob" not in buf.getvalue()
+    assert "plain" not in buf.getvalue()
+
+
+
 

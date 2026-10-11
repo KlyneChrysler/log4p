@@ -48,6 +48,7 @@ from .filter import (
     NotFilter,
     OrFilter,
     RegexFilter,
+    StructuredDataFilter,
     ThresholdFilter,
 )
 from .layout import (
@@ -103,6 +104,7 @@ __all__ = [
     "LevelMatchFilter",
     "LevelRangeFilter",
     "RegexFilter",
+    "StructuredDataFilter",
     "MarkerFilter",
     "AndFilter",
     "OrFilter",
