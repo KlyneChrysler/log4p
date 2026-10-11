@@ -65,6 +65,21 @@ class PropertiesRewritePolicy(RewritePolicy):
         return record
 
 
+class CallableRewritePolicy(RewritePolicy):
+    """Apply a Python callable to each record (the log4j2 ``ScriptRewritePolicy``
+    analogue).
+
+    *function* receives the record and returns either the (possibly modified)
+    record or ``None`` to drop the event.
+    """
+
+    def __init__(self, function) -> None:
+        self.function = function
+
+    def rewrite(self, record: LogRecord) -> Optional[LogRecord]:
+        return self.function(record)
+
+
 class RewriteAppender(Appender):
     """Apply *policy* to each record, then delegate to *appender*."""
 
@@ -98,7 +113,7 @@ class RewriteAppender(Appender):
 
     def append(self, record: LogRecord) -> None:
         if self.policy is not None:
-            rewritten = self.policy.rewrite(record)
-            if rewritten is not None:
-                record = rewritten
+            record = self.policy.rewrite(record)
+            if record is None:
+                return
         self.appender.doAppend(record)

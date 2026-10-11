@@ -50,6 +50,7 @@ from typing import Any, Dict, Mapping, Optional
 from .appender import (
     Appender,
     AsyncAppender,
+    CallableAppender,
     ConsoleAppender,
     CronRollingFileAppender,
     FailoverAppender,
@@ -98,6 +99,7 @@ from .logger import getLogger, getLoggerManager, getRootLogger
 from .mail import SMTPAppender
 from .net import HttpAppender, SocketAppender, SyslogAppender
 from .rewrite import (
+    CallableRewritePolicy,
     MapRewritePolicy,
     PropertiesRewritePolicy,
     RewriteAppender,
@@ -115,6 +117,7 @@ _REGISTRY = {
         FileAppender,
         MemoryAppender,
         NullAppender,
+        CallableAppender,
         RotatingFileAppender,
         TimedRotatingFileAppender,
         SizeAndTimeBasedAppender,
@@ -122,6 +125,7 @@ _REGISTRY = {
         AsyncAppender,
         RewriteAppender,
         RewritePolicy,
+        CallableRewritePolicy,
         MapRewritePolicy,
         PropertiesRewritePolicy,
         SocketAppender,

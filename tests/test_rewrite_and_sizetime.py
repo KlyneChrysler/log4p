@@ -88,6 +88,34 @@ def test_properties_rewrite_policy_sees_formatted_args():
     assert rec.getMessage() == "node1 -> eu"
 
 
+def test_callable_rewrite_policy_transforms_record():
+    from log4p import CallableRewritePolicy
+
+    policy = CallableRewritePolicy(lambda r: r)
+    rec = record("hello")
+    assert policy.rewrite(rec) is rec
+
+
+def test_callable_rewrite_policy_can_drop_event(capsys):
+    from log4p import CallableRewritePolicy
+
+    inner = ConsoleAppender(PatternLayout("%m"))
+    rw = RewriteAppender(inner, policy=CallableRewritePolicy(lambda r: None))
+    rw.doAppend(record("dropped"))
+    inner.stop()
+    assert capsys.readouterr().out == ""
+
+
+def test_callable_appender_receives_records():
+    from log4p import CallableAppender
+
+    seen = []
+    appender = CallableAppender(seen.append)
+    appender.doAppend(record("one"))
+    appender.doAppend(record("two"))
+    assert [r.getMessage() for r in seen] == ["one", "two"]
+
+
 def test_size_and_time_rolls_on_size(tmp_path):
     path = tmp_path / "app.log"
     app = SizeAndTimeBasedAppender(

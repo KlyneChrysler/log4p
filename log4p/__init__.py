@@ -15,6 +15,7 @@ from . import config
 from .appender import (
     Appender,
     AsyncAppender,
+    CallableAppender,
     ConsoleAppender,
     CronRollingFileAppender,
     FailoverAppender,
@@ -74,6 +75,7 @@ from .message import MapMessage, Message, StringMapMessage, StructuredDataMessag
 from .net import HttpAppender, SocketAppender, SyslogAppender
 from .record import LogRecord
 from .rewrite import (
+    CallableRewritePolicy,
     MapRewritePolicy,
     PropertiesRewritePolicy,
     RewriteAppender,
@@ -137,11 +139,13 @@ __all__ = [
     "CronRollingFileAppender",
     "MemoryAppender",
     "NullAppender",
+    "CallableAppender",
     "RotatingFileAppender",
     "RoutingAppender",
     "TimedRotatingFileAppender",
     "SizeAndTimeBasedAppender",
     "RewritePolicy",
+    "CallableRewritePolicy",
     "MapRewritePolicy",
     "PropertiesRewritePolicy",
     "RewriteAppender",

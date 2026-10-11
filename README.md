@@ -189,10 +189,12 @@ from log4p import (
     RewriteAppender,
     MapRewritePolicy,
     PropertiesRewritePolicy,
+    CallableRewritePolicy,
     SocketAppender,
     SyslogAppender,
     SMTPAppender,
     NullAppender,
+    CallableAppender,
 )
 
 ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
@@ -236,7 +238,8 @@ NullAppender()                               # discard everything
 - `RewriteAppender` runs a `RewritePolicy` over each record before delegating.
   `MapRewritePolicy({"k": "v"}, mode="add"|"update")` adds/updates context (MDC)
   entries; `PropertiesRewritePolicy({"region": "us-east-1"})` substitutes
-  `${key}` tokens in the message.
+  `${key}` tokens in the message. `CallableRewritePolicy(fn)` runs any
+  `fn(record)`, returning the record to keep or `None` to drop the event.
 - `RoutingAppender({"prod": prod_appender}, key="env", default="prod")` sends
   each event to a child appender chosen by a context value, with an optional
   fallback route.
@@ -252,6 +255,7 @@ NullAppender()                               # discard everything
   triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
   Supports `starttls`, `ssl`, and `username`/`password`.
 - `NullAppender` discards every event (a `/dev/null` sink).
+- `CallableAppender(fn)` forwards each record to a Python callable.
 - `MemoryAppender` captures rendered events and records in memory
   (`getEvents()` / `getRecords()`, optional `maxSize`), handy for tests.
 - `ConsoleAppender` / `FileAppender` accept `immediateFlush` (default `True`).

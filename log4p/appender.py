@@ -863,6 +863,32 @@ class NullAppender(Appender):
         pass
 
 
+class CallableAppender(Appender):
+    """Forward each record to a Python callable (the log4j2 ``ScriptAppender``
+    analogue).
+
+    *function* is called with the :class:`~log4p.record.LogRecord`; anything it
+    does with the event (or the rendered ``self._render(record)``) is up to the
+    caller. Exceptions raised by *function* are routed to the error handler.
+    """
+
+    def __init__(
+        self,
+        function,
+        layout: Optional[Layout] = None,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(name=name, layout=layout, threshold=threshold)
+        self.function = function
+
+    def append(self, record: LogRecord) -> None:
+        self.function(record)
+
+    def flush(self) -> None:
+        pass
+
+
 class CronRollingFileAppender(TimedRotatingFileAppender):
     """Roll the file when a cron expression matches (log4j's
     ``CronTriggeringPolicy``).
