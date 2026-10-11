@@ -15,6 +15,7 @@ import sys
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
+from .marker import getMarker
 from .record import LogRecord
 
 _HOSTNAME = socket.gethostname()
@@ -450,6 +451,31 @@ def _logger_name(
     return name
 
 
+class MarkerPatternSelector:
+    """Pick a compiled pattern based on the record's marker (log4j2's
+    ``MarkerPatternSelector``).
+
+    *patterns* maps marker names to patterns (or is a list of
+    ``(marker, pattern)`` pairs); a marker that is an ancestor of the record's
+    marker also matches. *default* is used when nothing matches.
+    """
+
+    def __init__(self, patterns, default: Optional[str] = None) -> None:
+        items = patterns.items() if isinstance(patterns, dict) else patterns
+        self._entries = [
+            (getMarker(name), _compile(pattern)) for name, pattern in items
+        ]
+        self._default = _compile(default) if default else None
+
+    def select(self, record: LogRecord) -> Optional[List[Callable[[LogRecord], str]]]:
+        marker = record.marker
+        if marker is not None:
+            for expected, tokens in self._entries:
+                if marker.isInstanceOf(expected):
+                    return tokens
+        return self._default
+
+
 class PatternLayout(Layout):
     """log4j-style pattern layout.
 
@@ -506,11 +532,18 @@ class PatternLayout(Layout):
         ${marker}                          marker name
     """
 
-    def __init__(self, pattern: str = "%m%n") -> None:
+    def __init__(
+        self, pattern: str = "%m%n", selector: Optional[MarkerPatternSelector] = None
+    ) -> None:
         self.pattern = pattern
+        self.selector = selector
         self._tokens: List[Callable[[LogRecord], str]] = _compile(pattern)
 
     def format(self, record: LogRecord) -> str:
+        if self.selector is not None:
+            tokens = self.selector.select(record)
+            if tokens is not None:
+                return "".join(token(record) for token in tokens)
         return "".join(token(record) for token in self._tokens)
 
 

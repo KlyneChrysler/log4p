@@ -145,6 +145,19 @@ ANSI colour is supported for consoles that understand escapes:
 PatternLayout("%highlight{%-5p} %style{%logger}{bold,cyan} %msg%n")
 ```
 
+A `PatternLayout` can also switch patterns per marker via a `MarkerPatternSelector`
+(log4j2 style); markers match their ancestors too:
+
+```python
+from log4p import MarkerPatternSelector
+PatternLayout(
+    "%m%n",
+    selector=MarkerPatternSelector(
+        {"SQL": "SQL> %m%n", "AUDIT": "AUD> %m%n"}, default="%m%n"
+    ),
+)
+```
+
 Other layouts:
 
 | Layout | Output |

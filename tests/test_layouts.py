@@ -460,4 +460,35 @@ def test_pattern_date_invalid_timezone_falls_back_to_local():
     assert PatternLayout("%d{HH:mm}{Not/AZone}").format(record) == out
 
 
+def test_marker_pattern_selector(monkeypatch):
+    from log4p import MarkerPatternSelector, getMarker
+
+    selector = MarkerPatternSelector(
+        {"SQL": "SQL> %m", "AUDIT": "AUD> %m"}, default="%m"
+    )
+    layout = PatternLayout("%m", selector=selector)
+
+    plain = LogRecord(name="a", level=Level.INFO, message="q")
+    assert layout.format(plain) == "q"
+
+    tagged = LogRecord(name="a", level=Level.INFO, message="q", marker=getMarker("SQL"))
+    assert layout.format(tagged) == "SQL> q"
+
+
+def test_marker_pattern_selector_hierarchy_and_default():
+    from log4p import MarkerPatternSelector, getMarker
+
+    parent = getMarker("ACCESS")
+    child = getMarker("ACCESS.DB", [parent])
+    selector = MarkerPatternSelector({"ACCESS": "A> %m"})
+    layout = PatternLayout("%m", selector=selector)
+
+    rec = LogRecord(name="a", level=Level.INFO, message="hi", marker=child)
+    assert layout.format(rec) == "A> hi"
+
+    untagged = LogRecord(name="a", level=Level.INFO, message="hi")
+    assert layout.format(untagged) == "hi"
+
+
+
 

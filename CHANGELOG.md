@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the
+  record's marker (with marker-hierarchy matching and a default).
 - `MapFilter` matches `MapMessage` events by key/value pairs (`and`/`or`).
 - `fileConfig(..., monitorInterval=N)` watches a config file and re-applies it
   when it changes (log4j2's `monitorInterval`).

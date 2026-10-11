@@ -1055,6 +1055,39 @@ def test_dictconfig_time_filter():
     assert built.end == "17:00"
 
 
+def test_dictconfig_marker_pattern_selector():
+    from log4p import MarkerPatternSelector, PatternLayout
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {
+                        "class": "PatternLayout",
+                        "pattern": "%m",
+                        "selector": {
+                            "class": "MarkerPatternSelector",
+                            "patterns": {"SQL": "SQL> %m"},
+                            "default": "def> %m",
+                        },
+                    },
+                }
+            },
+        }
+    )
+    layout = getRootLogger().getAppenders()[0].getLayout()
+    assert isinstance(layout, PatternLayout)
+    assert isinstance(layout.selector, MarkerPatternSelector)
+
+    getRootLogger().info("plain")
+    getRootLogger().info("query", marker=getMarker("SQL"))
+    assert buf.getvalue() == "def> plain\nSQL> query\n"
+
+
 def test_dictconfig_map_filter():
     from log4p import MapFilter, MapMessage
 

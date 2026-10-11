@@ -87,6 +87,7 @@ from .layout import (
     JSONLayout,
     Layout,
     LogfmtLayout,
+    MarkerPatternSelector,
     PatternLayout,
     SimpleLayout,
     XMLLayout,
@@ -132,6 +133,7 @@ _REGISTRY = {
         LogfmtLayout,
         XMLLayout,
         HTMLLayout,
+        MarkerPatternSelector,
         Filter,
         ThresholdFilter,
         LevelMatchFilter,
@@ -223,7 +225,16 @@ def _build_layout(spec: Any) -> Optional[Layout]:
         spec = {"class": spec}
     spec = dict(spec)
     cls = _resolve(spec.pop("class"))
+    selector = spec.get("selector")
+    if isinstance(selector, Mapping):
+        spec["selector"] = _build_selector(selector)
     return cls(**spec)
+
+
+def _build_selector(spec: Mapping[str, Any]) -> Any:
+    spec = dict(spec)
+    spec.pop("class", None)
+    return MarkerPatternSelector(spec.get("patterns", {}), default=spec.get("default"))
 
 
 def _build_filter(spec: Any) -> Filter:
