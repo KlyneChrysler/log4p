@@ -244,6 +244,45 @@ def _xml_escape(text: str) -> str:
     )
 
 
+def _format_throwable(record: LogRecord, option: Optional[str]) -> str:
+    """Render a traceback, honouring log4j-style options.
+
+    Supported options (comma separated): ``short`` (class + message only),
+    ``full`` (default), ``depth(N)`` (limit to N frames/lines), ``nolines``
+    (drop ``File "...", line N`` frames).
+    """
+    text = record.getExceptionText()
+    if not text:
+        return ""
+    if not option:
+        return text
+    opts = {part.strip().lower() for part in option.split(",") if part.strip()}
+    if "short" in opts:
+        exc_type, exc_value = record.exc_info[0], record.exc_info[1]
+        name = getattr(exc_type, "__name__", str(exc_type))
+        return f"{name}: {exc_value}" if exc_value is not None else name
+    lines = text.rstrip("\n").split("\n")
+    if "nolines" in opts:
+        lines = [ln for ln in lines if not ln.lstrip().startswith('File "')]
+    for opt in opts:
+        if opt.startswith("depth(") and opt.endswith(")"):
+            digits = opt[len("depth(") : -1]
+            if digits.isdigit():
+                lines = lines[: int(digits)]
+    return "\n".join(lines)
+
+
+_SD_ESCAPE = str.maketrans({"]": "\\]", '"': '\\"', "\\": "\\\\"})
+
+
+def _format_structured_data(sd_id: str, context: Dict[str, object]) -> str:
+    """Render context as an RFC 5424 structured-data element."""
+    params = " ".join(
+        f'{key}="{str(value).translate(_SD_ESCAPE)}"' for key, value in context.items()
+    )
+    return f"[{sd_id} {params}]" if params else f"[{sd_id}]"
+
+
 class XMLLayout(Layout):
     """Wrap each record in an ``<event>`` element (one per line)."""
 
@@ -350,7 +389,10 @@ class PatternLayout(Layout):
         %N / %nanos               nanoseconds since start
         %l / %location            module.function(file:line)
         %marker / %markerSimpleName  marker name
+        %seq / %sn / %sequenceNumber  per-event sequence number
+        %sd{SDID} / %structuredData  RFC 5424 structured data from context
         %env{NAME}                environment variable (%env{NAME:-default})
+        %throwable{opts} / %ex / %rEx / %xEx  traceback
         %n                        platform newline
         %%                        literal percent
 
@@ -407,8 +449,11 @@ _COLOR_NAMES = [
 ]
 
 _LONG_NAMES = _SELECTOR_NAMES + [
+    "xThrowable",
     "throwable",
     "exception",
+    "structuredData",
+    "sequenceNumber",
     "message",
     "msg",
     "logger",
@@ -436,6 +481,11 @@ _LONG_NAMES = _SELECTOR_NAMES + [
     "tid",
     "nanos",
     "env",
+    "seq",
+    "sn",
+    "sd",
+    "rEx",
+    "xEx",
     "ex",
 ]
 
@@ -723,6 +773,11 @@ def _make_converter(
         return wrap(lambda r: str(int(r.relativeCreated * 1_000_000)))
     if name == "markerSimpleName":
         return wrap(lambda r: str(r.marker) if r.marker is not None else "")
+    if name in ("seq", "sn", "sequenceNumber"):
+        return wrap(lambda r: str(r.sequence))
+    if name in ("sd", "structuredData"):
+        sd_id = option or "log4p@32473"
+        return wrap(lambda r: _format_structured_data(sd_id, r.context))
     if name == "env":
         if option:
             if ":-" in option:
@@ -734,8 +789,8 @@ def _make_converter(
         return wrap(lambda r: str(r.marker) if r.marker is not None else "")
     if name in ("stack",):
         return wrap(lambda r: r.stack_info or "")
-    if name in ("throwable", "exception", "ex"):
-        return wrap(lambda r: r.getExceptionText() or "")
+    if name in ("throwable", "exception", "ex", "rEx", "xEx", "xThrowable"):
+        return wrap(lambda r: _format_throwable(r, option))
     if name in ("X", "mdc"):
         if option:
             if ":-" in option:

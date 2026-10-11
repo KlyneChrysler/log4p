@@ -89,11 +89,13 @@ The full log4j conversion vocabulary is supported:
 | `%x` / `%ndc` | NDC stack | `outer inner` |
 | `%marker` / `%markerSimpleName` | Marker attached to the record | `SQL` |
 | `%stack` | Stack trace from `stack_info=True` | |
-| `%throwable` / `%ex` / `%exception` | Exception traceback | |
+| `%throwable{opts}` / `%ex` / `%exception` / `%rEx` / `%xEx` | Traceback (`short`, `nolines`, `depth(N)`) | |
 | `%l` / `%location` | `module.function(file:line)` | `db.connect(db.py:42)` |
 | `%pid` / `%processId` | Process id | `8123` |
 | `%T` / `%tid` / `%threadId` | Thread id | `140234` |
 | `%N` / `%nanos` | Nanoseconds since start | `42000000` |
+| `%seq` / `%sn` / `%sequenceNumber` | Per-event sequence number | `15` |
+| `%sd{SDID}` / `%structuredData` | RFC 5424 structured data from context | `[log4p@32473 k="v"]` |
 | `%env{NAME}` | Environment variable; `%env{NAME:-def}` for a default | |
 | `%h` / `%host` / `%hostName` | Hostname | |
 | `%n` | Newline | |

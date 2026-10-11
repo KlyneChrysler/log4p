@@ -8,6 +8,10 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Pattern converters `%seq` / `%sn` / `%sequenceNumber` (per-event sequence),
+  `%sd` / `%structuredData` (RFC 5424 structured data from context), and
+  extended throwable options on `%throwable` / `%ex` / `%rEx` / `%xEx`
+  (`short`, `nolines`, `depth(N)`).
 - Fluent logging API: `logger.atInfo().withMarker(...).withThrowable(...)
   .withContext(k, v).log(msg, *args)` (level captured lazily).
 - Pattern converters `%l` / `%location`, `%N` / `%nanos`, `%env{NAME}` (with

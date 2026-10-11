@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 import os
 import threading
 import time
@@ -9,6 +10,8 @@ import traceback
 from typing import Any, Dict, Mapping, Optional
 
 from .levels import Level
+
+_SEQUENCE = itertools.count(1)
 
 
 class LogRecord:
@@ -43,6 +46,7 @@ class LogRecord:
         "context",
         "ndc",
         "marker",
+        "sequence",
         "_formatted",
     )
 
@@ -87,6 +91,7 @@ class LogRecord:
         self.context: Dict[str, Any] = dict(context) if context else {}
         self.ndc = ndc
         self.marker = marker
+        self.sequence = next(_SEQUENCE)
         self._formatted: Optional[str] = None
 
     def getMessage(self) -> str:

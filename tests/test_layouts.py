@@ -322,4 +322,67 @@ def test_pattern_converter_aliases():
     assert PatternLayout("%hostName").format(record) == PatternLayout("%h").format(record)
 
 
+def test_pattern_sequence_number():
+    first = make_record()
+    second = make_record()
+    assert int(PatternLayout("%seq").format(second)) == int(PatternLayout("%seq").format(first)) + 1
+    assert PatternLayout("%sequenceNumber").format(first) == str(first.sequence)
+    assert PatternLayout("%sn").format(first) == str(first.sequence)
+
+
+def test_pattern_structured_data():
+    record = make_record()
+    assert PatternLayout("%sd").format(record) == '[log4p@32473 req="r-1"]'
+    assert PatternLayout("%sd{myapp@1}").format(record) == '[myapp@1 req="r-1"]'
+    assert PatternLayout("%structuredData").format(record) == '[log4p@32473 req="r-1"]'
+
+
+def test_pattern_structured_data_escapes():
+    record = make_record()
+    record.context = {"k": 'a"b]c\\d'}
+    assert PatternLayout("%sd").format(record) == '[log4p@32473 k="a\\"b\\]c\\\\d"]'
+
+
+def _exception_record():
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        import sys
+
+        record = make_record(args=())
+        record.exc_info = sys.exc_info()
+        record.exc_text = None
+        return record
+
+
+def test_pattern_throwable_short():
+    record = _exception_record()
+    assert PatternLayout("%throwable{short}").format(record) == "ValueError: boom"
+    assert PatternLayout("%rEx{short}").format(record) == "ValueError: boom"
+    assert PatternLayout("%xEx{short}").format(record) == "ValueError: boom"
+
+
+def test_pattern_throwable_full_default():
+    record = _exception_record()
+    assert "ValueError: boom" in PatternLayout("%throwable").format(record)
+
+
+def test_pattern_throwable_nolines():
+    record = _exception_record()
+    out = PatternLayout("%throwable{nolines}").format(record)
+    assert "ValueError: boom" in out
+    assert 'File "' not in out
+
+
+def test_pattern_throwable_depth():
+    record = _exception_record()
+    out = PatternLayout("%throwable{depth(2)}").format(record)
+    assert len(out.splitlines()) == 2
+
+
+def test_pattern_throwable_empty_without_exception():
+    record = make_record()
+    assert PatternLayout("%throwable").format(record) == ""
+
+
 
