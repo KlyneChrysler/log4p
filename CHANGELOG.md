@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- RFC 5424 framing for `SyslogAppender` (`rfc5424=True` with `appName` /
+  `procId` / `msgId`).
+- `PropertiesRewritePolicy` (`${key}` substitution in the message).
 - `onMatch` / `onMismatch` replies (`accept` / `deny` / `neutral`) on the level,
   range, regex, and marker filters.
 - `LevelMatchFilter`, `AcceptAllFilter`, `DenyAllFilter`.

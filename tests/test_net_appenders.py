@@ -79,6 +79,38 @@ def test_syslog_appender_udp_format():
     assert "app.db: disk full" in text
 
 
+def test_syslog_rfc5424_udp_format():
+    server, port = _udp_server()
+    app = SyslogAppender(
+        "127.0.0.1",
+        port,
+        facility="LOCAL0",
+        rfc5424=True,
+        appName="websvc",
+        msgId="ID47",
+        layout=PatternLayout("%m"),
+    )
+    app.doAppend(record("disk full", level=Level.ERROR))
+    data, _ = server.recvfrom(4096)
+    server.close()
+    app.stop()
+    text = data.decode()
+    assert text.startswith("<131>1 ")
+    assert " websvc " in text
+    assert " ID47 - disk full" in text
+    # RFC 5424 timestamp looks like 2026-10-11T12:00:00.123+00:00
+    assert "T" in text and "." in text
+
+
+def test_syslog_rfc5424_defaults_use_process_and_logger():
+    app = SyslogAppender("127.0.0.1", 1, rfc5424=True)
+    rec = record("hi", level=Level.INFO)
+    line = app._format_line(rec)
+    assert rec.name in line
+    assert str(rec.process) in line
+    assert " - hi" in line
+
+
 def test_syslog_severity_mapping():
     app = SyslogAppender("127.0.0.1", 1)
     assert app._severity(record(level=Level.FATAL)) == 2

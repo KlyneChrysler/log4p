@@ -152,6 +152,7 @@ from log4p import (
     AsyncAppender,
     RewriteAppender,
     MapRewritePolicy,
+    PropertiesRewritePolicy,
     SocketAppender,
     SyslogAppender,
     SMTPAppender,
@@ -170,6 +171,7 @@ RewriteAppender(FileAppender("app.log"),
                 policy=MapRewritePolicy({"request_id": "req-42"}))
 SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
 SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
+SyslogAppender("localhost", rfc5424=True, appName="svc", msgId="ID47")
 SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
              triggerLevel="ERROR")
 NullAppender()                               # discard everything
@@ -189,10 +191,12 @@ NullAppender()                               # discard everything
   loss); `overflow="discard"` drops and counts via `appender.dropped`.
 - `RewriteAppender` runs a `RewritePolicy` over each record before delegating.
   `MapRewritePolicy({"k": "v"}, mode="add"|"update")` adds/updates context (MDC)
-  entries.
-- `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits RFC
-  3164 syslog over UDP or TCP (severity derived from the level). Both reconnect
-  lazily and throttle retries (`reconnectDelay`).
+  entries; `PropertiesRewritePolicy({"region": "us-east-1"})` substitutes
+  `${key}` tokens in the message.
+- `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits syslog
+  over UDP or TCP (severity derived from the level) in RFC 3164 format, or RFC
+  5424 (`rfc5424=True`, with `appName`/`procId`/`msgId`). Both reconnect lazily
+  and throttle retries (`reconnectDelay`).
 - `SMTPAppender` keeps a ring buffer of recent events and emails them (with the
   triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
   Supports `starttls`, `ssl`, and `username`/`password`.

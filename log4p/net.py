@@ -128,7 +128,11 @@ class SocketAppender(Appender):
 
 
 class SyslogAppender(Appender):
-    """Emit RFC 3164 syslog messages (UDP by default, or TCP).
+    """Emit syslog messages (UDP by default, or TCP).
+
+    By default the RFC 3164 layout is used. Pass ``rfc5424=True`` for the modern
+    RFC 5424 framing (``<PRI>1 TIMESTAMP HOST APP PROCID MSGID SD MSG``), which
+    can carry an app name, process id, and message id.
 
     *facility* is a syslog facility name (`USER`, `DAEMON`, `LOCAL0`, ...); the
     severity is derived from the record level. The layout (default ``%m``)
@@ -143,6 +147,10 @@ class SyslogAppender(Appender):
         socktype: str = "UDP",
         layout: Optional[Layout] = None,
         timeout: float = 5.0,
+        rfc5424: bool = False,
+        appName: Optional[str] = None,
+        procId: Optional[str] = None,
+        msgId: Optional[str] = None,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -160,6 +168,10 @@ class SyslogAppender(Appender):
         self.facility = facility
         self.socktype = socktype
         self.timeout = timeout
+        self.rfc5424 = rfc5424
+        self.appName = appName
+        self.procId = procId
+        self.msgId = msgId
         self._socket: Optional[socket.socket] = None
 
     def start(self) -> None:
@@ -196,10 +208,27 @@ class SyslogAppender(Appender):
 
     def _format_line(self, record: LogRecord) -> str:
         pri = _SYSLOG_FACILITY[self.facility] * 8 + self._severity(record)
+        message = self._render(record).rstrip("\n")
+        if self.rfc5424:
+            return self._format_rfc5424(pri, record, message)
         when = time.strftime("%b %d %H:%M:%S", time.localtime(record.created))
         tag = record.name or "log4p"
-        message = self._render(record).rstrip("\n")
         return f"<{pri}>{when} {socket.gethostname()} {tag}: {message}"
+
+    def _format_rfc5424(self, pri: int, record: LogRecord, message: str) -> str:
+        when = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(record.created))
+        millis = int(record.msecs)
+        offset = time.strftime("%z", time.localtime(record.created))
+        if offset:
+            offset = offset[:3] + ":" + offset[3:]
+        else:  # pragma: no cover - platforms without %z
+            offset = "Z"
+        timestamp = f"{when}.{millis:03d}{offset}"
+        host = socket.gethostname()
+        app = self.appName or record.name or "log4p"
+        proc = self.procId if self.procId is not None else str(record.process)
+        msgid = self.msgId or "-"
+        return f"<{pri}>1 {timestamp} {host} {app} {proc} {msgid} - {message}"
 
     def append(self, record: LogRecord) -> None:
         line = self._format_line(record)

@@ -522,6 +522,36 @@ def test_dictconfig_rewrite_appender_with_policy():
     assert buf.getvalue() == "R1 hi\n"
 
 
+def test_dictconfig_properties_rewrite_policy():
+    from log4p import RewriteAppender
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["rewrite"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                },
+                "rewrite": {
+                    "class": "RewriteAppender",
+                    "appender": "console",
+                    "policy": {
+                        "class": "PropertiesRewritePolicy",
+                        "properties": {"region": "us-east-1"},
+                    },
+                },
+            },
+        }
+    )
+    root = getRootLogger()
+    assert isinstance(root.getAppenders()[0], RewriteAppender)
+    root.info("deploy to ${region}")
+    assert buf.getvalue() == "deploy to us-east-1\n"
+
+
 def test_dictconfig_size_and_time_appender(tmp_path):
     from log4p import SizeAndTimeBasedAppender
 
@@ -569,6 +599,8 @@ def test_dictconfig_socket_and_syslog_appenders():
                     "port": 5514,
                     "facility": "LOCAL1",
                     "socktype": "UDP",
+                    "rfc5424": True,
+                    "appName": "svc",
                 },
             },
         }
@@ -577,6 +609,8 @@ def test_dictconfig_socket_and_syslog_appenders():
     assert isinstance(apps[0], SocketAppender)
     assert isinstance(apps[1], SyslogAppender)
     assert apps[1].facility == "LOCAL1"
+    assert apps[1].rfc5424 is True
+    assert apps[1].appName == "svc"
     apps[0].stop()
     apps[1].stop()
 

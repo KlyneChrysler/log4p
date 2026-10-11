@@ -42,6 +42,29 @@ class MapRewritePolicy(RewritePolicy):
         return record
 
 
+class PropertiesRewritePolicy(RewritePolicy):
+    """Substitute ``${key}`` tokens in the message from *properties*.
+
+    Useful for pulling deployment-specific values (host, region, ...) into log
+    text without touching call sites. Substitution happens on the fully
+    formatted message so it also sees ``%``-style arguments.
+    """
+
+    def __init__(self, properties: Mapping[str, Any]) -> None:
+        self.properties = dict(properties)
+
+    def rewrite(self, record: LogRecord) -> Optional[LogRecord]:
+        message = record.getMessage()
+        for key, value in self.properties.items():
+            token = "${" + key + "}"
+            if token in message:
+                message = message.replace(token, str(value))
+        record.message = message
+        record.args = None
+        record._formatted = None
+        return record
+
+
 class RewriteAppender(Appender):
     """Apply *policy* to each record, then delegate to *appender*."""
 

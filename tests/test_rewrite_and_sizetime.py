@@ -10,6 +10,7 @@ from log4p import (
     LogRecord,
     MapRewritePolicy,
     PatternLayout,
+    PropertiesRewritePolicy,
     RewriteAppender,
     SizeAndTimeBasedAppender,
 )
@@ -64,6 +65,27 @@ def test_rewrite_appender_delegates_lifecycle():
     assert inner.isStarted()
     rw.stop()
     assert not inner.isStarted()
+
+
+def test_properties_rewrite_policy_substitutes_tokens():
+    policy = PropertiesRewritePolicy({"region": "us-east-1", "env": "prod"})
+    rec = record("deploy to ${region} (${env})")
+    policy.rewrite(rec)
+    assert rec.getMessage() == "deploy to us-east-1 (prod)"
+
+
+def test_properties_rewrite_policy_leaves_unknown_tokens():
+    policy = PropertiesRewritePolicy({"a": "x"})
+    rec = record("keep ${missing} as is")
+    policy.rewrite(rec)
+    assert rec.getMessage() == "keep ${missing} as is"
+
+
+def test_properties_rewrite_policy_sees_formatted_args():
+    policy = PropertiesRewritePolicy({"region": "eu"})
+    rec = LogRecord(name="app", level=Level.INFO, message="%s -> ${region}", args=("node1",))
+    policy.rewrite(rec)
+    assert rec.getMessage() == "node1 -> eu"
 
 
 def test_size_and_time_rolls_on_size(tmp_path):

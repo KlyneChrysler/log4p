@@ -58,7 +58,12 @@ from .mail import SMTPAppender
 from .marker import Marker, getMarker, getMarkerNames
 from .net import SocketAppender, SyslogAppender
 from .record import LogRecord
-from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
+from .rewrite import (
+    MapRewritePolicy,
+    PropertiesRewritePolicy,
+    RewriteAppender,
+    RewritePolicy,
+)
 
 __version__ = "0.1.0"
 
@@ -102,6 +107,7 @@ __all__ = [
     "SizeAndTimeBasedAppender",
     "RewritePolicy",
     "MapRewritePolicy",
+    "PropertiesRewritePolicy",
     "RewriteAppender",
     "SocketAppender",
     "SyslogAppender",

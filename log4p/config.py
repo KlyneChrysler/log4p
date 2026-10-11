@@ -80,7 +80,12 @@ from .layout import (
 from .logger import getLogger, getLoggerManager, getRootLogger
 from .mail import SMTPAppender
 from .net import SocketAppender, SyslogAppender
-from .rewrite import MapRewritePolicy, RewriteAppender, RewritePolicy
+from .rewrite import (
+    MapRewritePolicy,
+    PropertiesRewritePolicy,
+    RewriteAppender,
+    RewritePolicy,
+)
 
 _REGISTRY = {
     cls.__name__: cls
@@ -96,6 +101,7 @@ _REGISTRY = {
         RewriteAppender,
         RewritePolicy,
         MapRewritePolicy,
+        PropertiesRewritePolicy,
         SocketAppender,
         SyslogAppender,
         SMTPAppender,
