@@ -215,6 +215,8 @@ NullAppender()                               # discard everything
   over UDP or TCP (severity derived from the level) in RFC 3164 format, or RFC
   5424 (`rfc5424=True`, with `appName`/`procId`/`msgId`). Both reconnect lazily
   and throttle retries (`reconnectDelay`).
+- `HttpAppender("https://collector/log")` POSTs each event (JSON by default) to
+  an endpoint, with optional headers and `verifyHostname=False`.
 - `SMTPAppender` keeps a ring buffer of recent events and emails them (with the
   triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
   Supports `starttls`, `ssl`, and `username`/`password`.

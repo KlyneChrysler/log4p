@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `HttpAppender` POSTs (or GETs) each event to an HTTP endpoint, defaulting to
+  a JSON body with optional headers and TLS verification toggle.
 - `FailoverAppender` tries a primary appender and falls back through a list of
   failover appenders on error.
 - `AsyncAppender` log4j2 options: `bufferSize`, `blocking`, and

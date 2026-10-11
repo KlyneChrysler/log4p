@@ -247,6 +247,32 @@ def test_dictconfig_async_buffer_size_and_blocking():
     app.stop()
 
 
+def test_dictconfig_http_appender():
+    from log4p import HttpAppender, JSONLayout
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["http"]},
+            "appenders": {
+                "http": {
+                    "class": "HttpAppender",
+                    "url": "http://example.test/log",
+                    "method": "GET",
+                    "headers": {"X-Token": "abc"},
+                    "readTimeout": 1.5,
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, HttpAppender)
+    assert app.url == "http://example.test/log"
+    assert app.method == "GET"
+    assert app.headers == {"X-Token": "abc"}
+    assert app.readTimeout == 1.5
+    assert isinstance(app.getLayout(), JSONLayout)
+
+
 def test_dictconfig_fallback_error_handler():
     log4p_config.dictConfig(
         {

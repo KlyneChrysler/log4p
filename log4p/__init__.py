@@ -63,7 +63,7 @@ from .logger import LogBuilder, Logger, getLogger, getRootLogger, shutdown
 from .mail import SMTPAppender
 from .marker import Marker, getMarker, getMarkerNames
 from .message import MapMessage, Message, StringMapMessage, StructuredDataMessage
-from .net import SocketAppender, SyslogAppender
+from .net import HttpAppender, SocketAppender, SyslogAppender
 from .record import LogRecord
 from .rewrite import (
     MapRewritePolicy,
@@ -128,6 +128,7 @@ __all__ = [
     "RewriteAppender",
     "SocketAppender",
     "SyslogAppender",
+    "HttpAppender",
     "SMTPAppender",
     "ErrorHandler",
     "FallbackErrorHandler",

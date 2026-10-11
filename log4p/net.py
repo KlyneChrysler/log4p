@@ -1,19 +1,22 @@
-"""Network appenders: raw TCP socket and syslog (RFC 3164).
+"""Network appenders: raw TCP socket, syslog (RFC 3164/5424), and HTTP.
 
-Both reconnect lazily: a failed write closes the socket and marks it dead, and
-the next event tries to reconnect. Connection attempts are throttled by
-*reconnectDelay* seconds so a dead peer does not turn every log call into a
-blocking connect attempt.
+The socket and syslog appenders reconnect lazily: a failed write closes the
+socket and marks it dead, and the next event tries to reconnect. Connection
+attempts are throttled by *reconnectDelay* seconds so a dead peer does not turn
+every log call into a blocking connect attempt.
 """
 
 from __future__ import annotations
 
 import socket
+import ssl
 import time
-from typing import Optional, Union
+import urllib.parse
+import urllib.request
+from typing import Dict, Optional, Union
 
 from .appender import Appender
-from .layout import Layout, PatternLayout
+from .layout import JSONLayout, Layout, PatternLayout
 from .levels import Level
 from .record import LogRecord
 
@@ -125,6 +128,61 @@ class SocketAppender(Appender):
                 pass
             self._socket = None
             raise
+
+
+class HttpAppender(Appender):
+    """POST (or GET) each rendered event to an HTTP endpoint.
+
+    The layout defaults to :class:`~log4p.layout.JSONLayout`, so the body is a
+    JSON object. *headers* adds request headers; ``verifyHostname=False`` skips
+    TLS certificate verification.
+    """
+
+    def __init__(
+        self,
+        url: str,
+        method: str = "POST",
+        layout: Optional[Layout] = None,
+        headers: Optional[Dict[str, str]] = None,
+        connectTimeout: float = 5.0,
+        readTimeout: float = 5.0,
+        verifyHostname: bool = True,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        if layout is None:
+            layout = JSONLayout()
+        super().__init__(name=name, layout=layout, threshold=threshold)
+        method = method.upper()
+        if method not in ("POST", "GET"):
+            raise ValueError("method must be 'POST' or 'GET'")
+        self.url = url
+        self.method = method
+        self.headers: Dict[str, str] = dict(headers) if headers else {}
+        self.connectTimeout = connectTimeout
+        self.readTimeout = readTimeout
+        self.verifyHostname = verifyHostname
+
+    def _build_request(self, body: str) -> urllib.request.Request:
+        if self.method == "GET":
+            sep = "&" if "?" in self.url else "?"
+            url = f"{self.url}{sep}{urllib.parse.urlencode({'msg': body})}"
+            return urllib.request.Request(url, headers=self.headers, method="GET")
+        data = body.encode("utf-8")
+        headers = {"Content-Type": "application/json", **self.headers}
+        return urllib.request.Request(
+            self.url, data=data, headers=headers, method="POST"
+        )
+
+    def append(self, record: LogRecord) -> None:
+        request = self._build_request(self._render(record))
+        context = None
+        if not self.verifyHostname:
+            context = ssl._create_unverified_context()  # noqa: S323
+        with urllib.request.urlopen(  # noqa: S310 - user-supplied URL
+            request, timeout=self.readTimeout, context=context
+        ) as response:
+            response.read()
 
 
 class SyslogAppender(Appender):

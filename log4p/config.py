@@ -88,7 +88,7 @@ from .layout import (
 from .levels import addLevel
 from .logger import getLogger, getLoggerManager, getRootLogger
 from .mail import SMTPAppender
-from .net import SocketAppender, SyslogAppender
+from .net import HttpAppender, SocketAppender, SyslogAppender
 from .rewrite import (
     MapRewritePolicy,
     PropertiesRewritePolicy,
@@ -115,6 +115,7 @@ _REGISTRY = {
         PropertiesRewritePolicy,
         SocketAppender,
         SyslogAppender,
+        HttpAppender,
         SMTPAppender,
         Layout,
         SimpleLayout,
