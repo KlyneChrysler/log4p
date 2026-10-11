@@ -13,6 +13,7 @@ import re
 import socket
 import sys
 import time
+import traceback
 from typing import Callable, Dict, List, Optional, Tuple
 
 from .marker import getMarker
@@ -234,7 +235,10 @@ class JSONLayout(Layout):
     Options mirror log4j's ``JsonLayout``: ``compact`` drops whitespace,
     ``includeStacktrace`` toggles the ``exception`` field, ``properties`` adds
     static fields to every event, ``includeLocation`` adds a ``source`` object,
-    and ``eventEol`` appends a trailing newline.
+    ``includeThreadContext`` toggles the ``context`` field, ``includeTimeMillis``
+    adds ``timeMillis``, ``stacktraceAsString`` emits the trace as text (vs a
+    frame list), ``propertiesAsList`` nests properties under ``properties``, and
+    ``eventEol`` appends a trailing newline.
     """
 
     ignoresExceptions = True
@@ -248,6 +252,10 @@ class JSONLayout(Layout):
         includeLocation: bool = False,
         eventEol: bool = False,
         properties: Optional[Dict[str, object]] = None,
+        includeThreadContext: bool = True,
+        includeTimeMillis: bool = False,
+        stacktraceAsString: bool = True,
+        propertiesAsList: bool = False,
     ) -> None:
         self.ensure_ascii = ensure_ascii
         self.sort_keys = sort_keys
@@ -256,11 +264,21 @@ class JSONLayout(Layout):
         self.includeLocation = includeLocation
         self.eventEol = eventEol
         self.properties = dict(properties) if properties else {}
+        self.includeThreadContext = includeThreadContext
+        self.includeTimeMillis = includeTimeMillis
+        self.stacktraceAsString = stacktraceAsString
+        self.propertiesAsList = propertiesAsList
 
     def format(self, record: LogRecord) -> str:
         data = record.toDict()
         if not self.includeStacktrace:
             data.pop("exception", None)
+        elif not self.stacktraceAsString and record.exc_info:
+            data["exception"] = _exception_frames(record)
+        if not self.includeThreadContext:
+            data.pop("context", None)
+        if self.includeTimeMillis:
+            data["timeMillis"] = int(record.created * 1000)
         if self.includeLocation:
             data["source"] = {
                 "file": record.filename,
@@ -268,8 +286,15 @@ class JSONLayout(Layout):
                 "method": record.funcName,
                 "class": record.module,
             }
-        for key, value in self.properties.items():
-            data.setdefault(key, value)
+        if self.properties:
+            if self.propertiesAsList:
+                data["properties"] = [
+                    {"name": key, "value": value}
+                    for key, value in self.properties.items()
+                ]
+            else:
+                for key, value in self.properties.items():
+                    data.setdefault(key, value)
         separators = (",", ":") if self.compact else None
         text = json.dumps(
             data,
@@ -279,6 +304,21 @@ class JSONLayout(Layout):
             default=str,
         )
         return text + "\n" if self.eventEol else text
+
+
+def _exception_frames(record: LogRecord) -> List[Dict[str, object]]:
+    frames: List[Dict[str, object]] = []
+    tb = record.exc_info[2] if record.exc_info else None
+    for frame in traceback.extract_tb(tb):
+        frames.append(
+            {
+                "class": frame.name,
+                "method": frame.name,
+                "file": frame.filename,
+                "line": frame.lineno,
+            }
+        )
+    return frames
 
 
 def _logfmt_value(value: object) -> str:

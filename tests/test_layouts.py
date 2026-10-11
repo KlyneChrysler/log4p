@@ -152,6 +152,44 @@ def test_json_layout_event_eol():
     assert not JSONLayout().format(make_record()).endswith("\n")
 
 
+def test_json_layout_thread_context_toggle():
+    data = json.loads(JSONLayout(includeThreadContext=False).format(make_record()))
+    assert "context" not in data
+    assert "context" in json.loads(JSONLayout().format(make_record()))
+
+
+def test_json_layout_time_millis():
+    record = make_record()
+    data = json.loads(JSONLayout(includeTimeMillis=True).format(record))
+    assert data["timeMillis"] == int(record.created * 1000)
+
+
+def test_json_layout_properties_as_list():
+    data = json.loads(
+        JSONLayout(properties={"app": "svc"}, propertiesAsList=True).format(
+            make_record()
+        )
+    )
+    assert data["properties"] == [{"name": "app", "value": "svc"}]
+    assert "app" not in data
+
+
+def test_json_layout_stacktrace_as_frames():
+    try:
+        raise ValueError("bad")
+    except ValueError:
+        import sys
+
+        record = LogRecord(
+            name="x", level=Level.ERROR, message="oops", exc_info=sys.exc_info()
+        )
+    data = json.loads(JSONLayout(stacktraceAsString=False).format(record))
+    assert isinstance(data["exception"], list)
+    assert any(frame["line"] for frame in data["exception"])
+    assert "file" in data["exception"][0]
+
+
+
 def test_message_formatting_dict_args():
     record = LogRecord(
         name="x", level=Level.INFO, message="%(a)s-%(b)s", args={"a": 1, "b": 2}

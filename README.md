@@ -169,7 +169,7 @@ Other layouts:
 | Layout | Output |
 |--------|--------|
 | `SimpleLayout` | `LEVEL - message` |
-| `JSONLayout` | one JSON object per line (includes marker, stack, exception) |
+| `JSONLayout` | one JSON object per line (options: `compact`, `includeStacktrace`, `stacktraceAsString`, `includeLocation`, `includeThreadContext`, `includeTimeMillis`, `properties`, `propertiesAsList`, `eventEol`) |
 | `LogfmtLayout` | `level=info logger=... msg="..."` key-value pairs |
 | `XMLLayout` | one `<event>` element per record |
 | `HTMLLayout` | a full HTML table (header/footer written by stream appenders) |
