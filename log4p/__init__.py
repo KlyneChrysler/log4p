@@ -79,6 +79,7 @@ from .rewrite import (
     RewriteAppender,
     RewritePolicy,
 )
+from .syslog import RFC5424Layout, SyslogLayout
 
 __version__ = "0.2.0"
 
@@ -104,6 +105,8 @@ __all__ = [
     "LogfmtLayout",
     "XMLLayout",
     "HTMLLayout",
+    "SyslogLayout",
+    "RFC5424Layout",
     "MarkerPatternSelector",
     "Filter",
     "FilterReply",

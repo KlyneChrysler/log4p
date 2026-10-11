@@ -16,43 +16,10 @@ import urllib.request
 from typing import Dict, Optional, Union
 
 from .appender import Appender
-from .layout import JSONLayout, Layout, PatternLayout
+from .layout import JSONLayout, Layout
 from .levels import Level
 from .record import LogRecord
-
-_SYSLOG_FACILITY = {
-    "KERN": 0,
-    "USER": 1,
-    "MAIL": 2,
-    "DAEMON": 3,
-    "AUTH": 4,
-    "SYSLOG": 5,
-    "LPR": 6,
-    "NEWS": 7,
-    "UUCP": 8,
-    "CRON": 9,
-    "AUTHPRIV": 10,
-    "FTP": 11,
-    "LOCAL0": 16,
-    "LOCAL1": 17,
-    "LOCAL2": 18,
-    "LOCAL3": 19,
-    "LOCAL4": 20,
-    "LOCAL5": 21,
-    "LOCAL6": 22,
-    "LOCAL7": 23,
-}
-
-_SYSLOG_SEVERITY = {
-    "FATAL": 2,
-    "CRITICAL": 2,
-    "ERROR": 3,
-    "WARN": 4,
-    "WARNING": 4,
-    "INFO": 6,
-    "DEBUG": 7,
-    "TRACE": 7,
-}
+from .syslog import RFC5424Layout, SyslogLayout, facility_index, severity_for
 
 
 class SocketAppender(Appender):
@@ -212,12 +179,22 @@ class SyslogAppender(Appender):
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
+        facility_index(facility)
         if layout is None:
-            layout = PatternLayout("%m")
+            if rfc5424:
+                layout = RFC5424Layout(
+                    facility=facility,
+                    appName=appName,
+                    procId=procId,
+                    msgId=msgId,
+                )
+            else:
+                layout = SyslogLayout(facility=facility)
+            self._wrap = False
+        else:
+            self._wrap = True
         super().__init__(name=name, layout=layout, threshold=threshold)
         facility = facility.upper()
-        if facility not in _SYSLOG_FACILITY:
-            raise ValueError(f"unknown syslog facility: {facility!r}")
         socktype = socktype.upper()
         if socktype not in ("UDP", "TCP"):
             raise ValueError("socktype must be 'UDP' or 'TCP'")
@@ -230,6 +207,11 @@ class SyslogAppender(Appender):
         self.appName = appName
         self.procId = procId
         self.msgId = msgId
+        self._framer: Layout = (
+            RFC5424Layout(facility=facility, appName=appName, procId=procId, msgId=msgId)
+            if rfc5424
+            else SyslogLayout(facility=facility)
+        )
         self._socket: Optional[socket.socket] = None
 
     def start(self) -> None:
@@ -259,34 +241,13 @@ class SyslogAppender(Appender):
             self._socket = socket.create_connection((self.host, self.port), timeout=self.timeout)
 
     def _severity(self, record: LogRecord) -> int:
-        name = record.level.name.upper()
-        if name in _SYSLOG_SEVERITY:
-            return _SYSLOG_SEVERITY[name]
-        return 7 if int(record.level) <= int(Level.DEBUG) else 3
+        return severity_for(record)
 
     def _format_line(self, record: LogRecord) -> str:
-        pri = _SYSLOG_FACILITY[self.facility] * 8 + self._severity(record)
-        message = self._render(record).rstrip("\n")
-        if self.rfc5424:
-            return self._format_rfc5424(pri, record, message)
-        when = time.strftime("%b %d %H:%M:%S", time.localtime(record.created))
-        tag = record.name or "log4p"
-        return f"<{pri}>{when} {socket.gethostname()} {tag}: {message}"
-
-    def _format_rfc5424(self, pri: int, record: LogRecord, message: str) -> str:
-        when = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(record.created))
-        millis = int(record.msecs)
-        offset = time.strftime("%z", time.localtime(record.created))
-        if offset:
-            offset = offset[:3] + ":" + offset[3:]
-        else:  # pragma: no cover - platforms without %z
-            offset = "Z"
-        timestamp = f"{when}.{millis:03d}{offset}"
-        host = socket.gethostname()
-        app = self.appName or record.name or "log4p"
-        proc = self.procId if self.procId is not None else str(record.process)
-        msgid = self.msgId or "-"
-        return f"<{pri}>1 {timestamp} {host} {app} {proc} {msgid} - {message}"
+        if not self._wrap:
+            return self._render(record)
+        body = self._render(record).rstrip("\n")
+        return self._framer.formatLine(record, body)
 
     def append(self, record: LogRecord) -> None:
         line = self._format_line(record)

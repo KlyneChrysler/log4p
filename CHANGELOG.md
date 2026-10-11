@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `SyslogLayout` (RFC 3164) and `RFC5424Layout` render complete, `<PRI>`-framed
+  syslog lines and can attach to any appender; `SyslogAppender` now uses them.
 - `CallableFilter` matches on an arbitrary Python predicate (log4j2
   `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the

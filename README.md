@@ -168,6 +168,8 @@ Other layouts:
 | `LogfmtLayout` | `level=info logger=... msg="..."` key-value pairs |
 | `XMLLayout` | one `<event>` element per record |
 | `HTMLLayout` | a full HTML table (header/footer written by stream appenders) |
+| `SyslogLayout` | RFC 3164 line with `<PRI>` header |
+| `RFC5424Layout` | RFC 5424 line (timestamp, host, app, procid, msgid, structured data) |
 
 ## Appenders
 
@@ -201,6 +203,10 @@ RewriteAppender(FileAppender("app.log"),
 SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
 SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
 SyslogAppender("localhost", rfc5424=True, appName="svc", msgId="ID47")
+# SyslogLayout / RFC5424Layout render the full <PRI>-framed line and can be
+# attached to any appender (use them with SyslogAppender for custom framing).
+ConsoleAppender(SyslogLayout(facility="LOCAL0"))
+ConsoleAppender(RFC5424Layout(appName="svc", msgId="ID47"))
 SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
              triggerLevel="ERROR")
 NullAppender()                               # discard everything

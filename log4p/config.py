@@ -103,6 +103,7 @@ from .rewrite import (
     RewriteAppender,
     RewritePolicy,
 )
+from .syslog import RFC5424Layout, SyslogLayout
 
 _REGISTRY = {
     cls.__name__: cls
@@ -134,6 +135,8 @@ _REGISTRY = {
         LogfmtLayout,
         XMLLayout,
         HTMLLayout,
+        SyslogLayout,
+        RFC5424Layout,
         MarkerPatternSelector,
         Filter,
         ThresholdFilter,
