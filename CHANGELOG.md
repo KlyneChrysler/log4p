@@ -6,6 +6,8 @@ All notable changes to log4p are documented here. This project follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-11
+
 ### Added
 
 - `$${...}` escaping renders a literal `${...}` in patterns and config values.
