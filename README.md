@@ -206,11 +206,12 @@ Each appender takes an optional `threshold` and any number of filters:
 
 ```python
 from log4p import (
-    ThresholdFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
-    AndFilter, OrFilter, NotFilter,
+    ThresholdFilter, LevelMatchFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
+    AndFilter, OrFilter, NotFilter, AcceptAllFilter, DenyAllFilter,
 )
 
-appender.addFilter(ThresholdFilter("INFO"))
+appender.addFilter(ThresholdFilter("INFO"))            # level >= INFO
+appender.addFilter(LevelMatchFilter("ERROR"))          # exactly ERROR
 appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
 appender.addFilter(MarkerFilter("SQL"))          # only records tagged SQL
 
@@ -224,6 +225,15 @@ appender.addFilter(NotFilter(RegexFilter(r"healthcheck", field="message")))
 `AndFilter` accepts only when every child accepts (any denial denies);
 `OrFilter` accepts when any child accepts; `NotFilter` inverts one child.
 All three build from config with nested `filters` / `filter` keys.
+`AcceptAllFilter` / `DenyAllFilter` accept or deny unconditionally.
+
+Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
+(each `"accept"`, `"deny"`, or `"neutral"`, default `"neutral"` / `"deny"`),
+so you can gate an appender on a match (`onMatch="accept"`):
+
+```python
+appender.addFilter(ThresholdFilter("ERROR", onMatch="accept"))  # ONLY errors
+```
 
 ### Error handlers
 

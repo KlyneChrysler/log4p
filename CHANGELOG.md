@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `onMatch` / `onMismatch` replies (`accept` / `deny` / `neutral`) on the level,
+  range, regex, and marker filters.
+- `LevelMatchFilter`, `AcceptAllFilter`, `DenyAllFilter`.
 - `NullAppender` (discard-all sink).
 - Logger level checks: `isTraceEnabled` / `isDebugEnabled` / `isInfoEnabled` /
   `isWarnEnabled` / `isErrorEnabled` / `isFatalEnabled`.

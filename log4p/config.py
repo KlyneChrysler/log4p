@@ -56,8 +56,11 @@ from .appender import (
 )
 from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
+    AcceptAllFilter,
     AndFilter,
+    DenyAllFilter,
     Filter,
+    LevelMatchFilter,
     LevelRangeFilter,
     MarkerFilter,
     NotFilter,
@@ -105,12 +108,15 @@ _REGISTRY = {
         HTMLLayout,
         Filter,
         ThresholdFilter,
+        LevelMatchFilter,
         LevelRangeFilter,
         RegexFilter,
         MarkerFilter,
         AndFilter,
         OrFilter,
         NotFilter,
+        AcceptAllFilter,
+        DenyAllFilter,
         ErrorHandler,
         FallbackErrorHandler,
     )

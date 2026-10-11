@@ -403,6 +403,38 @@ def test_dictconfig_builds_nested_and_filter():
     assert "boom but low" not in out
 
 
+def test_dictconfig_builds_level_match_and_on_match_replies():
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%p %m"},
+                    "filters": [
+                        {"class": "LevelMatchFilter", "level": "ERROR"},
+                    ],
+                }
+            },
+        }
+    )
+    root = getRootLogger()
+    root.error("keep me")
+    root.warn("drop me")
+    out = buf.getvalue()
+    assert "ERROR keep me" in out
+    assert "drop me" not in out
+
+    filt = getRootLogger().getAppenders()[0].getFilters()[0]
+    from log4p import FilterReply, LevelMatchFilter
+
+    assert isinstance(filt, LevelMatchFilter)
+    assert filt.onMatch == FilterReply.NEUTRAL
+    assert filt.onMismatch == FilterReply.DENY
+
+
 def test_dictconfig_builds_not_filter():
     log4p_config.dictConfig(
         {

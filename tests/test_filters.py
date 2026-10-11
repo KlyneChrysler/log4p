@@ -113,3 +113,55 @@ def test_composite_with_real_filters():
     assert filt.decide(record(Level.ERROR, "boom")) == FilterReply.NEUTRAL
     assert filt.decide(record(Level.INFO, "boom")) == FilterReply.DENY
     assert filt.decide(record(Level.ERROR, "fine")) == FilterReply.DENY
+
+
+def test_accept_and_deny_all_filters():
+    from log4p import AcceptAllFilter, DenyAllFilter
+
+    assert AcceptAllFilter().decide(record()) == FilterReply.ACCEPT
+    assert DenyAllFilter().decide(record()) == FilterReply.DENY
+
+
+def test_level_match_filter():
+    from log4p import LevelMatchFilter
+
+    filt = LevelMatchFilter("WARN")
+    assert filt.decide(record(Level.WARN)) == FilterReply.NEUTRAL
+    assert filt.decide(record(Level.ERROR)) == FilterReply.DENY
+    assert filt.decide(record(Level.INFO)) == FilterReply.DENY
+
+
+def test_on_match_and_on_mismatch_replies():
+    filt = ThresholdFilter("WARN", onMatch="accept", onMismatch="neutral")
+    assert filt.decide(record(Level.ERROR)) == FilterReply.ACCEPT
+    assert filt.decide(record(Level.INFO)) == FilterReply.NEUTRAL
+
+
+def test_regex_filter_explicit_replies():
+    filt = RegexFilter(r"boom", onMatch="accept", onMismatch="neutral")
+    assert filt.decide(record(message="boom")) == FilterReply.ACCEPT
+    assert filt.decide(record(message="ok")) == FilterReply.NEUTRAL
+
+
+def test_regex_filter_deny_variant_unchanged():
+    filt = RegexFilter(r"health", on_match="deny")
+    assert filt.decide(record(message="health ok")) == FilterReply.DENY
+    assert filt.decide(record(message="real")) == FilterReply.NEUTRAL
+
+
+def test_invalid_reply_rejected():
+    import pytest
+
+    with pytest.raises(ValueError):
+        ThresholdFilter("WARN", onMatch="maybe")
+
+
+def test_on_match_makes_composites_useful():
+    # An ACCEPT-returning filter lets OrFilter short-circuit.
+    filt = OrFilter(
+        ThresholdFilter("ERROR", onMatch="accept"),
+        RegexFilter(r"audit", onMatch="accept"),
+    )
+    assert filt.decide(record(Level.ERROR, "anything")) == FilterReply.ACCEPT
+    assert filt.decide(record(Level.INFO, "audit trail")) == FilterReply.ACCEPT
+    assert filt.decide(record(Level.INFO, "noise")) == FilterReply.DENY
