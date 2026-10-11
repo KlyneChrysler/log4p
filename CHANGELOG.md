@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `ContextMapFilter` (MDC/context key-value matching, `and`/`or`) and
+  `DynamicThresholdFilter` (per-context-value threshold).
+- Custom levels in config via a top-level `levels:` map.
 - Optional timezone in `%d{format}{timezone}` (`UTC`, `GMT+2`, `+05:30`, or any
   IANA name via `zoneinfo`).
 - Pattern converters `%seq` / `%sn` / `%sequenceNumber` (per-event sequence),

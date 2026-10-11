@@ -165,3 +165,62 @@ def test_on_match_makes_composites_useful():
     assert filt.decide(record(Level.ERROR, "anything")) == FilterReply.ACCEPT
     assert filt.decide(record(Level.INFO, "audit trail")) == FilterReply.ACCEPT
     assert filt.decide(record(Level.INFO, "noise")) == FilterReply.DENY
+
+
+def test_context_map_filter_and():
+    from log4p import ContextMapFilter
+
+    filt = ContextMapFilter({"user": "alice", "tenant": "acme"})
+    rec = record()
+    rec.context.update({"user": "alice", "tenant": "acme"})
+    assert filt.decide(rec) == FilterReply.NEUTRAL
+    rec.context["tenant"] = "other"
+    assert filt.decide(rec) == FilterReply.DENY
+
+
+def test_context_map_filter_or():
+    from log4p import ContextMapFilter
+
+    filt = ContextMapFilter({"user": "alice", "tenant": "acme"}, operator="or")
+    rec = record()
+    rec.context["user"] = "alice"
+    assert filt.decide(rec) == FilterReply.NEUTRAL
+    rec.context["user"] = "bob"
+    assert filt.decide(rec) == FilterReply.DENY
+
+
+def test_context_map_filter_empty_denies():
+    from log4p import ContextMapFilter
+
+    assert ContextMapFilter({}).decide(record()) == FilterReply.DENY
+
+
+def test_context_map_filter_rejects_bad_operator():
+    import pytest
+
+    from log4p import ContextMapFilter
+
+    with pytest.raises(ValueError):
+        ContextMapFilter({"a": "b"}, operator="xor")
+
+
+def test_dynamic_threshold_filter():
+    from log4p import DynamicThresholdFilter
+
+    filt = DynamicThresholdFilter("user", {"alice": "DEBUG"}, default_threshold="ERROR")
+    rec = record(Level.DEBUG)
+    rec.context["user"] = "alice"
+    assert filt.decide(rec) == FilterReply.NEUTRAL
+    rec.context["user"] = "bob"
+    assert filt.decide(rec) == FilterReply.DENY
+    assert filt.decide(record(Level.ERROR)) == FilterReply.NEUTRAL
+
+
+def test_dynamic_threshold_filter_accept_variant():
+    from log4p import DynamicThresholdFilter
+
+    filt = DynamicThresholdFilter(
+        "user", {"alice": "DEBUG"}, default_threshold="ERROR", onMatch="accept"
+    )
+    rec = record(Level.ERROR)
+    assert filt.decide(rec) == FilterReply.ACCEPT

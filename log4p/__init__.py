@@ -32,7 +32,9 @@ from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
     AcceptAllFilter,
     AndFilter,
+    ContextMapFilter,
     DenyAllFilter,
+    DynamicThresholdFilter,
     Filter,
     FilterReply,
     LevelMatchFilter,
@@ -97,6 +99,8 @@ __all__ = [
     "NotFilter",
     "AcceptAllFilter",
     "DenyAllFilter",
+    "ContextMapFilter",
+    "DynamicThresholdFilter",
     "Appender",
     "AsyncAppender",
     "ConsoleAppender",

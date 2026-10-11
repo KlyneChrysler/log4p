@@ -224,6 +224,7 @@ Each appender takes an optional `threshold` and any number of filters:
 ```python
 from log4p import (
     ThresholdFilter, LevelMatchFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
+    ContextMapFilter, DynamicThresholdFilter,
     AndFilter, OrFilter, NotFilter, AcceptAllFilter, DenyAllFilter,
 )
 
@@ -231,6 +232,8 @@ appender.addFilter(ThresholdFilter("INFO"))            # level >= INFO
 appender.addFilter(LevelMatchFilter("ERROR"))          # exactly ERROR
 appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
 appender.addFilter(MarkerFilter("SQL"))          # only records tagged SQL
+appender.addFilter(ContextMapFilter({"tenant": "acme"}))
+appender.addFilter(DynamicThresholdFilter("user", {"alice": "DEBUG"}))
 
 # Compose filters:
 appender.addFilter(AndFilter(ThresholdFilter("WARN"),
@@ -243,6 +246,9 @@ appender.addFilter(NotFilter(RegexFilter(r"healthcheck", field="message")))
 `OrFilter` accepts when any child accepts; `NotFilter` inverts one child.
 All three build from config with nested `filters` / `filter` keys.
 `AcceptAllFilter` / `DenyAllFilter` accept or deny unconditionally.
+`ContextMapFilter({"k": "v"}, operator="and"|"or")` matches on MDC/context
+values, and `DynamicThresholdFilter("user", {"alice": "DEBUG"})` picks the
+threshold per context value.
 
 Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
 (each `"accept"`, `"deny"`, or `"neutral"`, default `"neutral"` / `"deny"`),

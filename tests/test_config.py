@@ -674,4 +674,80 @@ def test_dictconfig_null_appender():
     assert isinstance(app, NullAppender)
 
 
+def test_dictconfig_custom_level():
+    from log4p import getLevel
+
+    log4p_config.dictConfig(
+        {
+            "levels": {"VERBOSE": 15},
+            "root": {"level": "VERBOSE", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    assert getLevel("VERBOSE").value == 15
+    assert getRootLogger().getEffectiveLevel().name == "VERBOSE"
+
+
+def test_dictconfig_context_map_filter():
+    from log4p import ContextMapFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {
+                            "class": "ContextMapFilter",
+                            "properties": {"tenant": "acme"},
+                            "operator": "and",
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, ContextMapFilter)
+    assert built.operator == "and"
+
+
+def test_dictconfig_dynamic_threshold_filter():
+    from log4p import DynamicThresholdFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {
+                            "class": "DynamicThresholdFilter",
+                            "key": "user",
+                            "levels": {"alice": "DEBUG"},
+                            "default_threshold": "ERROR",
+                        }
+                    ],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, DynamicThresholdFilter)
+    assert built.key == "user"
+    assert built.default_threshold.name == "ERROR"
+
+
 

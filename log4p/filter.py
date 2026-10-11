@@ -199,6 +199,66 @@ class MarkerFilter(Filter):
         return self._reply(present)
 
 
+class ContextMapFilter(Filter):
+    """Match records whose context (MDC) contains the configured pairs.
+
+    *properties* maps context keys to expected values. With ``operator="and"``
+    (default) every pair must match; with ``"or"`` any single pair matching is
+    enough.
+    """
+
+    def __init__(
+        self,
+        properties,
+        operator: str = "and",
+        onMatch="neutral",
+        onMismatch="deny",
+    ) -> None:
+        super().__init__(onMatch, onMismatch)
+        self.properties = dict(properties)
+        op = operator.lower()
+        if op not in ("and", "or"):
+            raise ValueError("operator must be 'and' or 'or'")
+        self.operator = op
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        if not self.properties:
+            return self._reply(False)
+        checks = (
+            str(record.context.get(key, "")) == str(value)
+            for key, value in self.properties.items()
+        )
+        matched = all(checks) if self.operator == "and" else any(checks)
+        return self._reply(matched)
+
+
+class DynamicThresholdFilter(Filter):
+    """Per-context-key threshold: the effective level depends on *key*.
+
+    *levels* maps a context value to a level name/int. When the record's
+    context value has no entry, *default_threshold* is used. Records at or above
+    the resulting threshold match.
+    """
+
+    def __init__(
+        self,
+        key: str,
+        levels,
+        default_threshold="ERROR",
+        onMatch="neutral",
+        onMismatch="deny",
+    ) -> None:
+        super().__init__(onMatch, onMismatch)
+        self.key = key
+        self.levels = {str(k): getLevel(v) for k, v in dict(levels).items()}
+        self.default_threshold = getLevel(default_threshold)
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        value = str(record.context.get(self.key, ""))
+        threshold = self.levels.get(value, self.default_threshold)
+        return self._reply(int(record.level) >= int(threshold))
+
+
 class _CompositeFilter(Filter):
     """Base for filters that combine child filters."""
 

@@ -8,6 +8,8 @@ Two entry points:
 The mapping shape::
 
     version: 1
+    levels:
+      VERBOSE: 15
     root:
       level: INFO
       appenders: [console]
@@ -58,7 +60,9 @@ from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
     AcceptAllFilter,
     AndFilter,
+    ContextMapFilter,
     DenyAllFilter,
+    DynamicThresholdFilter,
     Filter,
     LevelMatchFilter,
     LevelRangeFilter,
@@ -77,6 +81,7 @@ from .layout import (
     SimpleLayout,
     XMLLayout,
 )
+from .levels import addLevel
 from .logger import getLogger, getLoggerManager, getRootLogger
 from .mail import SMTPAppender
 from .net import SocketAppender, SyslogAppender
@@ -123,6 +128,8 @@ _REGISTRY = {
         NotFilter,
         AcceptAllFilter,
         DenyAllFilter,
+        ContextMapFilter,
+        DynamicThresholdFilter,
         ErrorHandler,
         FallbackErrorHandler,
     )
@@ -285,6 +292,9 @@ def dictConfig(config: Mapping[str, Any]) -> None:
     config = dict(config)
     if config.pop("substitute", True):
         config = substitute_variables(config)
+
+    for level_name, level_value in (config.get("levels") or {}).items():
+        addLevel(level_name, int(level_value))
 
     appender_cfgs: Dict[str, Any] = config.get("appenders", {})
     logger_cfgs: Dict[str, Any] = config.get("loggers", {})
