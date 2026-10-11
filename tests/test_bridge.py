@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     PatternLayout,
@@ -12,8 +12,8 @@ from log4p import (
     capture_stdlib,
     getLogger,
 )
-from log4p.context import MDC
-from log4p.logger import LoggerManager
+from log4p2.context import MDC
+from log4p2.logger import LoggerManager
 
 
 @pytest.fixture
@@ -141,7 +141,7 @@ def test_log4p_appender_forwards_to_stdlib(manager):
 
 def test_capture_stdlib_installs_on_root():
     # Use the default manager (capture_stdlib wires into it).
-    from log4p.logger import getLoggerManager
+    from log4p2.logger import getLoggerManager
 
     getLoggerManager().clear()
     getLoggerManager().warn_on_no_appenders = False

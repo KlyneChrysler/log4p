@@ -7,7 +7,7 @@ import logging
 import os
 import time
 
-from log4p import (
+from log4p2 import (
     AsyncAppender,
     ConsoleAppender,
     PatternLayout,

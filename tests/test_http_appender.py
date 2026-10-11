@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from log4p import HttpAppender, JSONLayout, Level, LogRecord, PatternLayout
+from log4p2 import HttpAppender, JSONLayout, Level, LogRecord, PatternLayout
 
 
 def record(message="hello", level=Level.INFO):

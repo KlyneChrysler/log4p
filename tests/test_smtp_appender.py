@@ -2,7 +2,7 @@ import smtplib
 
 import pytest
 
-from log4p import Level, LogRecord, PatternLayout, SMTPAppender
+from log4p2 import Level, LogRecord, PatternLayout, SMTPAppender
 
 
 def record(message="hello", level=Level.INFO, name="app.db"):

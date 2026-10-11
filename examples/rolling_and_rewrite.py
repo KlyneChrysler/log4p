@@ -3,7 +3,7 @@
 import os
 import tempfile
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     MapRewritePolicy,

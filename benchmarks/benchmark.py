@@ -17,15 +17,15 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from log4p import (  # noqa: E402
+from log4p2 import (  # noqa: E402
     ConsoleAppender,
     FileAppender,
     MemoryAppender,
     PatternLayout,
     getLogger,
 )
-from log4p.context import MDC  # noqa: E402
-from log4p.logger import getLoggerManager  # noqa: E402
+from log4p2.context import MDC  # noqa: E402
+from log4p2.logger import getLoggerManager  # noqa: E402
 
 PATTERN = "%d{ISO8601} %-5p [%c] %X{request} - %m%n"
 

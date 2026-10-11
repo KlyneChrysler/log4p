@@ -4,7 +4,7 @@ Run:  PYTHONPATH=. python3 examples/demo.py
 The exact output is captured in examples/output.md.
 """
 
-from log4p import (
+from log4p2 import (
     MDC,
     ConsoleAppender,
     JSONLayout,

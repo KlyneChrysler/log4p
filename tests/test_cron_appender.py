@@ -1,6 +1,6 @@
 import time
 
-from log4p import CronRollingFileAppender, Level, LogRecord, PatternLayout
+from log4p2 import CronRollingFileAppender, Level, LogRecord, PatternLayout
 
 
 def record(message="line", level=Level.INFO):

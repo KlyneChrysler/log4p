@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     Level,
     LogRecord,
     PatternLayout,

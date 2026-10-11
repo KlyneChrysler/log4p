@@ -1,7 +1,7 @@
 import pytest
 
-from log4p import Level, LogRecord, Marker, PatternLayout
-from log4p import config as log4p_config
+from log4p2 import Level, LogRecord, Marker, PatternLayout
+from log4p2 import config as log4p_config
 
 
 def record(context=None, marker=None):
@@ -84,7 +84,7 @@ def test_ctx_lookup_survives_config_substitution():
 def test_ctx_lookup_in_config_layout(monkeypatch):
     import io
 
-    from log4p.logger import getLoggerManager
+    from log4p2.logger import getLoggerManager
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -99,7 +99,7 @@ def test_ctx_lookup_in_config_layout(monkeypatch):
             },
         }
     )
-    from log4p import MDC
+    from log4p2 import MDC
 
     MDC.put("tid", "T1")
     getLoggerManager().root.info("hello")
@@ -137,7 +137,7 @@ def test_sys_lookup_default():
 
 
 def test_map_and_sd_lookups():
-    from log4p import MapMessage, StructuredDataMessage
+    from log4p2 import MapMessage, StructuredDataMessage
 
     mapped = LogRecord(
         name="app", level=Level.INFO, message=MapMessage({"svc": "checkout"})

@@ -1,6 +1,6 @@
 import io
 
-from log4p import (
+from log4p2 import (
     AsyncAppender,
     ConsoleAppender,
     Level,

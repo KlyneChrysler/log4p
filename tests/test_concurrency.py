@@ -5,15 +5,15 @@ import threading
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     FileAppender,
     MemoryAppender,
     PatternLayout,
     getLogger,
 )
-from log4p.context import MDC
-from log4p.logger import getLoggerManager
+from log4p2.context import MDC
+from log4p2.logger import getLoggerManager
 
 THREADS = 16
 PER_THREAD = 250

@@ -4,9 +4,9 @@ import os
 
 import pytest
 
-from log4p import config as log4p_config
-from log4p import getLogger, getMarker, getRootLogger
-from log4p.logger import getLoggerManager
+from log4p2 import config as log4p_config
+from log4p2 import getLogger, getMarker, getRootLogger
+from log4p2.logger import getLoggerManager
 
 
 @pytest.fixture(autouse=True)
@@ -213,7 +213,7 @@ def test_basic_config_file(tmp_path):
 
 
 def test_appender_instance_passed_directly():
-    from log4p import ConsoleAppender, PatternLayout
+    from log4p2 import ConsoleAppender, PatternLayout
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -229,7 +229,7 @@ def test_appender_instance_passed_directly():
 
 
 def test_dictconfig_async_appender_wraps_delegate():
-    from log4p import AsyncAppender
+    from log4p2 import AsyncAppender
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -266,7 +266,7 @@ def test_dictconfig_async_requires_prior_delegate():
 
 
 def test_dictconfig_async_buffer_size_and_blocking():
-    from log4p import AsyncAppender
+    from log4p2 import AsyncAppender
 
     log4p_config.dictConfig(
         {
@@ -296,7 +296,7 @@ def test_dictconfig_async_buffer_size_and_blocking():
 
 
 def test_dictconfig_http_appender():
-    from log4p import HttpAppender, JSONLayout
+    from log4p2 import HttpAppender, JSONLayout
 
     log4p_config.dictConfig(
         {
@@ -532,7 +532,7 @@ def test_dictconfig_builds_level_match_and_on_match_replies():
     assert "drop me" not in out
 
     filt = getRootLogger().getAppenders()[0].getFilters()[0]
-    from log4p import FilterReply, LevelMatchFilter
+    from log4p2 import FilterReply, LevelMatchFilter
 
     assert isinstance(filt, LevelMatchFilter)
     assert filt.onMatch == FilterReply.NEUTRAL
@@ -558,7 +558,7 @@ def test_dictconfig_builds_not_filter():
             },
         }
     )
-    from log4p import NotFilter, RegexFilter
+    from log4p2 import NotFilter, RegexFilter
 
     built = getRootLogger().getAppenders()[0].getFilters()[0]
     assert isinstance(built, NotFilter)
@@ -599,7 +599,7 @@ def test_dictconfig_builds_or_filter_behaviour():
 
 
 def test_dictconfig_rewrite_appender_with_policy():
-    from log4p import RewriteAppender
+    from log4p2 import RewriteAppender
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -627,7 +627,7 @@ def test_dictconfig_rewrite_appender_with_policy():
 
 
 def test_dictconfig_properties_rewrite_policy():
-    from log4p import RewriteAppender
+    from log4p2 import RewriteAppender
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -657,7 +657,7 @@ def test_dictconfig_properties_rewrite_policy():
 
 
 def test_dictconfig_size_and_time_appender(tmp_path):
-    from log4p import SizeAndTimeBasedAppender
+    from log4p2 import SizeAndTimeBasedAppender
 
     path = tmp_path / "app.log"
     log4p_config.dictConfig(
@@ -685,7 +685,7 @@ def test_dictconfig_size_and_time_appender(tmp_path):
 
 
 def test_dictconfig_socket_and_syslog_appenders():
-    from log4p import SocketAppender, SyslogAppender
+    from log4p2 import SocketAppender, SyslogAppender
 
     log4p_config.dictConfig(
         {
@@ -720,7 +720,7 @@ def test_dictconfig_socket_and_syslog_appenders():
 
 
 def test_dictconfig_smtp_appender():
-    from log4p import SMTPAppender
+    from log4p2 import SMTPAppender
 
     log4p_config.dictConfig(
         {
@@ -766,7 +766,7 @@ def test_dictconfig_on_startup_and_size_string(tmp_path):
 
 
 def test_dictconfig_null_appender():
-    from log4p import NullAppender
+    from log4p2 import NullAppender
 
     log4p_config.dictConfig(
         {
@@ -779,7 +779,7 @@ def test_dictconfig_null_appender():
 
 
 def test_dictconfig_memory_appender():
-    from log4p import MemoryAppender
+    from log4p2 import MemoryAppender
 
     log4p_config.dictConfig(
         {
@@ -801,7 +801,7 @@ def test_dictconfig_memory_appender():
 
 
 def test_dictconfig_console_immediate_flush():
-    from log4p import ConsoleAppender
+    from log4p2 import ConsoleAppender
 
     log4p_config.dictConfig(
         {
@@ -822,7 +822,7 @@ def test_dictconfig_console_immediate_flush():
 
 
 def test_dictconfig_custom_level():
-    from log4p import getLevel
+    from log4p2 import getLevel
 
     log4p_config.dictConfig(
         {
@@ -842,7 +842,7 @@ def test_dictconfig_custom_level():
 
 
 def test_dictconfig_context_map_filter():
-    from log4p import ContextMapFilter
+    from log4p2 import ContextMapFilter
 
     log4p_config.dictConfig(
         {
@@ -869,7 +869,7 @@ def test_dictconfig_context_map_filter():
 
 
 def test_dictconfig_dynamic_threshold_filter():
-    from log4p import DynamicThresholdFilter
+    from log4p2 import DynamicThresholdFilter
 
     log4p_config.dictConfig(
         {
@@ -898,7 +898,7 @@ def test_dictconfig_dynamic_threshold_filter():
 
 
 def test_dictconfig_logger_level_filters():
-    from log4p import LevelMatchFilter
+    from log4p2 import LevelMatchFilter
 
     log4p_config.dictConfig(
         {
@@ -926,7 +926,7 @@ def test_dictconfig_logger_level_filters():
 
 
 def test_dictconfig_root_filters():
-    from log4p import AcceptAllFilter
+    from log4p2 import AcceptAllFilter
 
     log4p_config.dictConfig(
         {
@@ -949,7 +949,7 @@ def test_dictconfig_root_filters():
 
 
 def test_dictconfig_json_layout_options():
-    from log4p import JSONLayout
+    from log4p2 import JSONLayout
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -984,7 +984,7 @@ def test_dictconfig_json_layout_options():
 
 
 def test_dictconfig_burst_filter():
-    from log4p import BurstFilter
+    from log4p2 import BurstFilter
 
     log4p_config.dictConfig(
         {
@@ -1008,7 +1008,7 @@ def test_dictconfig_burst_filter():
 
 
 def test_dictconfig_cron_rolling(tmp_path):
-    from log4p import CronRollingFileAppender
+    from log4p2 import CronRollingFileAppender
 
     path = tmp_path / "app.log"
     log4p_config.dictConfig(
@@ -1034,7 +1034,7 @@ def test_dictconfig_cron_rolling(tmp_path):
 
 
 def test_dictconfig_time_filter():
-    from log4p import TimeFilter
+    from log4p2 import TimeFilter
 
     log4p_config.dictConfig(
         {
@@ -1056,7 +1056,7 @@ def test_dictconfig_time_filter():
 
 
 def test_dictconfig_marker_pattern_selector():
-    from log4p import MarkerPatternSelector, PatternLayout
+    from log4p2 import MarkerPatternSelector, PatternLayout
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -1089,7 +1089,7 @@ def test_dictconfig_marker_pattern_selector():
 
 
 def test_dictconfig_map_filter():
-    from log4p import MapFilter, MapMessage
+    from log4p2 import MapFilter, MapMessage
 
     buf = io.StringIO()
     log4p_config.dictConfig(
@@ -1117,7 +1117,7 @@ def test_dictconfig_map_filter():
 
 
 def test_dictconfig_structured_data_filter():
-    from log4p import StructuredDataFilter, StructuredDataMessage
+    from log4p2 import StructuredDataFilter, StructuredDataMessage
 
     buf = io.StringIO()
     log4p_config.dictConfig(

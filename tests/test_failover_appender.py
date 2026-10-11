@@ -1,13 +1,13 @@
 import io
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     FailoverAppender,
     Level,
     LogRecord,
     PatternLayout,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 def record(message="hi"):
@@ -79,7 +79,7 @@ def test_failover_lifecycle_and_layout():
 
 
 def test_failover_config_builds_children():
-    from log4p import config as log4p_config
+    from log4p2 import config as log4p_config
 
     buf = io.StringIO()
     log4p_config.dictConfig(

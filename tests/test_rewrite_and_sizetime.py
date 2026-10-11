@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     LogRecord,
@@ -89,7 +89,7 @@ def test_properties_rewrite_policy_sees_formatted_args():
 
 
 def test_callable_rewrite_policy_transforms_record():
-    from log4p import CallableRewritePolicy
+    from log4p2 import CallableRewritePolicy
 
     policy = CallableRewritePolicy(lambda r: r)
     rec = record("hello")
@@ -97,7 +97,7 @@ def test_callable_rewrite_policy_transforms_record():
 
 
 def test_callable_rewrite_policy_can_drop_event(capsys):
-    from log4p import CallableRewritePolicy
+    from log4p2 import CallableRewritePolicy
 
     inner = ConsoleAppender(PatternLayout("%m"))
     rw = RewriteAppender(inner, policy=CallableRewritePolicy(lambda r: None))
@@ -107,7 +107,7 @@ def test_callable_rewrite_policy_can_drop_event(capsys):
 
 
 def test_callable_appender_receives_records():
-    from log4p import CallableAppender
+    from log4p2 import CallableAppender
 
     seen = []
     appender = CallableAppender(seen.append)

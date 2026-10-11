@@ -2,7 +2,7 @@
 
 import os
 
-from log4p import config, getLogger
+from log4p2 import config, getLogger
 
 config.fileConfig(os.path.join(os.path.dirname(__file__), "log4p.yaml"))
 

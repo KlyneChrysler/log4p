@@ -2,8 +2,8 @@ import io
 
 import pytest
 
-from log4p import ConsoleAppender, Level, PatternLayout
-from log4p.logger import LoggerManager, getLoggerManager
+from log4p2 import ConsoleAppender, Level, PatternLayout
+from log4p2.logger import LoggerManager, getLoggerManager
 
 
 @pytest.fixture

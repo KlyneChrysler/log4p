@@ -1,6 +1,6 @@
 """PatternLayout selectors, ANSI colour, and composite filters."""
 
-from log4p import (
+from log4p2 import (
     AndFilter,
     ConsoleAppender,
     Level,

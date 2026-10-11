@@ -1,4 +1,4 @@
-from log4p import (
+from log4p2 import (
     AndFilter,
     BurstFilter,
     FilterReply,
@@ -118,14 +118,14 @@ def test_composite_with_real_filters():
 
 
 def test_accept_and_deny_all_filters():
-    from log4p import AcceptAllFilter, DenyAllFilter
+    from log4p2 import AcceptAllFilter, DenyAllFilter
 
     assert AcceptAllFilter().decide(record()) == FilterReply.ACCEPT
     assert DenyAllFilter().decide(record()) == FilterReply.DENY
 
 
 def test_level_match_filter():
-    from log4p import LevelMatchFilter
+    from log4p2 import LevelMatchFilter
 
     filt = LevelMatchFilter("WARN")
     assert filt.decide(record(Level.WARN)) == FilterReply.NEUTRAL
@@ -170,7 +170,7 @@ def test_on_match_makes_composites_useful():
 
 
 def test_context_map_filter_and():
-    from log4p import ContextMapFilter
+    from log4p2 import ContextMapFilter
 
     filt = ContextMapFilter({"user": "alice", "tenant": "acme"})
     rec = record()
@@ -181,7 +181,7 @@ def test_context_map_filter_and():
 
 
 def test_context_map_filter_or():
-    from log4p import ContextMapFilter
+    from log4p2 import ContextMapFilter
 
     filt = ContextMapFilter({"user": "alice", "tenant": "acme"}, operator="or")
     rec = record()
@@ -192,7 +192,7 @@ def test_context_map_filter_or():
 
 
 def test_context_map_filter_empty_denies():
-    from log4p import ContextMapFilter
+    from log4p2 import ContextMapFilter
 
     assert ContextMapFilter({}).decide(record()) == FilterReply.DENY
 
@@ -200,14 +200,14 @@ def test_context_map_filter_empty_denies():
 def test_context_map_filter_rejects_bad_operator():
     import pytest
 
-    from log4p import ContextMapFilter
+    from log4p2 import ContextMapFilter
 
     with pytest.raises(ValueError):
         ContextMapFilter({"a": "b"}, operator="xor")
 
 
 def test_dynamic_threshold_filter():
-    from log4p import DynamicThresholdFilter
+    from log4p2 import DynamicThresholdFilter
 
     filt = DynamicThresholdFilter("user", {"alice": "DEBUG"}, default_threshold="ERROR")
     rec = record(Level.DEBUG)
@@ -219,7 +219,7 @@ def test_dynamic_threshold_filter():
 
 
 def test_dynamic_threshold_filter_accept_variant():
-    from log4p import DynamicThresholdFilter
+    from log4p2 import DynamicThresholdFilter
 
     filt = DynamicThresholdFilter(
         "user", {"alice": "DEBUG"}, default_threshold="ERROR", onMatch="accept"
@@ -231,14 +231,14 @@ def test_dynamic_threshold_filter_accept_variant():
 def test_no_marker_filter():
     rec = record()
     assert NoMarkerFilter().decide(rec) == FilterReply.NEUTRAL
-    from log4p import Marker
+    from log4p2 import Marker
 
     rec.marker = Marker("SQL")
     assert NoMarkerFilter().decide(rec) == FilterReply.DENY
 
 
 def test_no_marker_filter_custom_replies():
-    from log4p import Marker
+    from log4p2 import Marker
 
     filt = NoMarkerFilter(onMatch="accept", onMismatch="neutral")
     assert filt.decide(record()) == FilterReply.ACCEPT
@@ -255,7 +255,7 @@ def test_burst_filter_allows_capacity_then_denies():
 
 
 def test_burst_filter_refills_over_time():
-    from log4p.filter import BurstFilter as BF
+    from log4p2.filter import BurstFilter as BF
 
     filt = BF(rate=1000.0, maxBurst=1)
     assert filt.decide(record()) == FilterReply.NEUTRAL
@@ -274,7 +274,7 @@ def test_burst_filter_level_bypasses_limit():
 
 
 def _sd_record(data=None, type=""):
-    from log4p import StructuredDataMessage
+    from log4p2 import StructuredDataMessage
 
     rec = record()
     rec.message = StructuredDataMessage(data or {}, type=type)
@@ -282,7 +282,7 @@ def _sd_record(data=None, type=""):
 
 
 def test_structured_data_filter_matches_properties():
-    from log4p import StructuredDataFilter
+    from log4p2 import StructuredDataFilter
 
     filt = StructuredDataFilter(properties={"user": "alice"})
     assert filt.decide(_sd_record({"user": "alice"})) == FilterReply.NEUTRAL
@@ -290,14 +290,14 @@ def test_structured_data_filter_matches_properties():
 
 
 def test_structured_data_filter_ignores_plain_records():
-    from log4p import StructuredDataFilter
+    from log4p2 import StructuredDataFilter
 
     filt = StructuredDataFilter(properties={"user": "alice"})
     assert filt.decide(record()) == FilterReply.DENY
 
 
 def test_structured_data_filter_type_and_operator():
-    from log4p import StructuredDataFilter
+    from log4p2 import StructuredDataFilter
 
     filt = StructuredDataFilter(
         properties={"a": "1", "b": "2"}, type="audit", operator="or"
@@ -308,7 +308,7 @@ def test_structured_data_filter_type_and_operator():
 
 
 def test_structured_data_filter_no_properties_matches_any_sd():
-    from log4p import StructuredDataFilter
+    from log4p2 import StructuredDataFilter
 
     filt = StructuredDataFilter()
     assert filt.decide(_sd_record({"x": "1"})) == FilterReply.NEUTRAL
@@ -318,14 +318,14 @@ def test_structured_data_filter_no_properties_matches_any_sd():
 def test_structured_data_filter_invalid_operator():
     import pytest
 
-    from log4p import StructuredDataFilter
+    from log4p2 import StructuredDataFilter
 
     with pytest.raises(ValueError):
         StructuredDataFilter(properties={}, operator="xor")
 
 
 def test_map_filter_matches_map_message():
-    from log4p import MapFilter, MapMessage
+    from log4p2 import MapFilter, MapMessage
 
     filt = MapFilter(properties={"svc": "checkout"})
     rec = record()
@@ -337,7 +337,7 @@ def test_map_filter_matches_map_message():
 
 
 def test_map_filter_or_operator_and_empty():
-    from log4p import MapFilter, MapMessage
+    from log4p2 import MapFilter, MapMessage
 
     either = MapFilter(properties={"a": "1", "b": "2"}, operator="or")
     rec = record()
@@ -359,7 +359,7 @@ def _at(hour, minute=0, second=0):
 
 
 def test_time_filter_within_range():
-    from log4p import TimeFilter
+    from log4p2 import TimeFilter
 
     filt = TimeFilter("08:00", "17:00")
     assert filt.decide(_at(9)) == FilterReply.NEUTRAL
@@ -370,7 +370,7 @@ def test_time_filter_within_range():
 
 
 def test_time_filter_wraps_midnight():
-    from log4p import TimeFilter
+    from log4p2 import TimeFilter
 
     filt = TimeFilter("22:00", "06:00")
     assert filt.decide(_at(23)) == FilterReply.NEUTRAL
@@ -379,7 +379,7 @@ def test_time_filter_wraps_midnight():
 
 
 def test_time_filter_with_seconds_and_replies():
-    from log4p import TimeFilter
+    from log4p2 import TimeFilter
 
     filt = TimeFilter("08:00:00", "08:00:30", onMatch="accept", onMismatch="neutral")
     assert filt.decide(_at(8, 0, 15)) == FilterReply.ACCEPT
@@ -389,7 +389,7 @@ def test_time_filter_with_seconds_and_replies():
 def test_time_filter_invalid_value():
     import pytest
 
-    from log4p import TimeFilter
+    from log4p2 import TimeFilter
 
     with pytest.raises(ValueError):
         TimeFilter("8am", "17:00")
@@ -398,7 +398,7 @@ def test_time_filter_invalid_value():
 
 
 def test_callable_filter():
-    from log4p import CallableFilter
+    from log4p2 import CallableFilter
 
     filt = CallableFilter(lambda r: r.level >= Level.WARN)
     assert filt.decide(record(Level.DEBUG)) == FilterReply.NEUTRAL

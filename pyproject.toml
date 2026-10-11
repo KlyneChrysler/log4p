@@ -3,14 +3,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "log4p"
+name = "log4p2"
 version = "0.2.0"
 description = "A log4j-inspired logging framework for Python: logger hierarchies, appenders, layouts, filters, and config files."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "Klyne Chrysler C. Dotarot", email = "klyne@inventivlabs.io" }]
-keywords = ["logging", "log4j", "log4p", "log", "appender", "layout", "filter"]
+keywords = ["logging", "log4j", "log4p2", "log", "appender", "layout", "filter"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -31,16 +31,16 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["log4p*"]
+include = ["log4p2*"]
 
 [tool.setuptools.package-data]
-log4p = ["py.typed"]
+log4p2 = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["log4p"]
+source = ["log4p2"]
 
 [tool.coverage.report]
 show_missing = true

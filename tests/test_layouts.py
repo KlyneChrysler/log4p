@@ -1,7 +1,7 @@
 import json
 import re
 
-from log4p import JSONLayout, Level, LogRecord, PatternLayout, SimpleLayout
+from log4p2 import JSONLayout, Level, LogRecord, PatternLayout, SimpleLayout
 
 
 def make_record(msg="hello %s", args=("world",), name="app.db"):
@@ -228,7 +228,7 @@ def test_pattern_stack_converter():
 
 
 def test_logfmt_layout():
-    from log4p import LogfmtLayout
+    from log4p2 import LogfmtLayout
 
     out = LogfmtLayout().format(make_record())
     assert "level=info" in out
@@ -238,7 +238,7 @@ def test_logfmt_layout():
 
 
 def test_logfmt_layout_quotes_special_values():
-    from log4p import LogfmtLayout
+    from log4p2 import LogfmtLayout
 
     record = LogRecord(name="x", level=Level.INFO, message="a b=c", args=None)
     out = LogfmtLayout(timestamp=False).format(record)
@@ -246,7 +246,7 @@ def test_logfmt_layout_quotes_special_values():
 
 
 def test_xml_layout():
-    from log4p import XMLLayout
+    from log4p2 import XMLLayout
 
     out = XMLLayout().format(make_record())
     assert out.startswith("<event ")
@@ -257,7 +257,7 @@ def test_xml_layout():
 
 
 def test_xml_layout_escapes_body():
-    from log4p import XMLLayout
+    from log4p2 import XMLLayout
 
     record = LogRecord(name="x", level=Level.INFO, message="a<b>&c", args=None)
     out = XMLLayout().format(record)
@@ -265,7 +265,7 @@ def test_xml_layout_escapes_body():
 
 
 def test_html_layout_header_body_footer():
-    from log4p import HTMLLayout
+    from log4p2 import HTMLLayout
 
     layout = HTMLLayout(title="t")
     assert layout.header().startswith("<!DOCTYPE html>")
@@ -289,7 +289,7 @@ def test_pattern_replace_selector():
 
 def test_pattern_equals_selector():
     tagged = make_record()
-    from log4p import getMarker
+    from log4p2 import getMarker
 
     tagged.marker = getMarker("SQL")
     assert PatternLayout("%equals{[%marker]}{[SQL]}{!}").format(tagged) == "!"
@@ -298,14 +298,14 @@ def test_pattern_equals_selector():
 
 def test_pattern_equals_ignore_case_selector():
     tagged = make_record()
-    from log4p import getMarker
+    from log4p2 import getMarker
 
     tagged.marker = getMarker("Sql")
     assert PatternLayout("%equalsIgnoreCase{%marker}{sql}{OK}").format(tagged) == "OK"
 
 
 def test_pattern_not_empty_selector():
-    from log4p import getMarker
+    from log4p2 import getMarker
 
     record = make_record()
     assert PatternLayout("%notEmpty{[%marker]}END").format(record) == "END"
@@ -365,7 +365,7 @@ def test_pattern_map_converter():
 
 
 def test_pattern_message_map_converter():
-    from log4p import MapMessage
+    from log4p2 import MapMessage
 
     rec = LogRecord(name="a", level=Level.INFO, message=MapMessage({"svc": "checkout"}))
     assert PatternLayout("%map{svc}").format(rec) == "checkout"
@@ -401,7 +401,7 @@ def test_pattern_env_converter(monkeypatch):
 
 
 def test_pattern_marker_simple_name():
-    from log4p import getMarker
+    from log4p2 import getMarker
 
     record = make_record()
     record.marker = getMarker("SQL")
@@ -517,7 +517,7 @@ def test_pattern_date_invalid_timezone_falls_back_to_local():
 
 
 def test_marker_pattern_selector(monkeypatch):
-    from log4p import MarkerPatternSelector, getMarker
+    from log4p2 import MarkerPatternSelector, getMarker
 
     selector = MarkerPatternSelector(
         {"SQL": "SQL> %m", "AUDIT": "AUD> %m"}, default="%m"
@@ -532,7 +532,7 @@ def test_marker_pattern_selector(monkeypatch):
 
 
 def test_marker_pattern_selector_hierarchy_and_default():
-    from log4p import MarkerPatternSelector, getMarker
+    from log4p2 import MarkerPatternSelector, getMarker
 
     parent = getMarker("ACCESS")
     child = getMarker("ACCESS.DB", [parent])
@@ -556,8 +556,8 @@ def test_pattern_layout_header_footer():
 def test_pattern_layout_always_write_exceptions_false():
     import io
 
-    from log4p import ConsoleAppender, getLogger
-    from log4p.logger import getLoggerManager
+    from log4p2 import ConsoleAppender, getLogger
+    from log4p2.logger import getLoggerManager
 
     getLoggerManager().clear()
     buf = io.StringIO()
@@ -580,8 +580,8 @@ def test_pattern_layout_always_write_exceptions_false():
 def test_pattern_layout_always_write_exceptions_true_default():
     import io
 
-    from log4p import ConsoleAppender, getLogger
-    from log4p.logger import getLoggerManager
+    from log4p2 import ConsoleAppender, getLogger
+    from log4p2.logger import getLoggerManager
 
     getLoggerManager().clear()
     buf = io.StringIO()

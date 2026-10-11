@@ -2,7 +2,7 @@ from datetime import datetime
 
 import pytest
 
-from log4p import CronExpression
+from log4p2 import CronExpression
 
 
 def at(text):

@@ -5,7 +5,7 @@ import tempfile
 import time
 from datetime import datetime
 
-from log4p import (
+from log4p2 import (
     CronExpression,
     CronRollingFileAppender,
     Level,

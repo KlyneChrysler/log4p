@@ -1,5 +1,5 @@
-from log4p import Level, LogRecord, NullAppender, PatternLayout, getLogger
-from log4p.logger import getLoggerManager
+from log4p2 import Level, LogRecord, NullAppender, PatternLayout, getLogger
+from log4p2.logger import getLoggerManager
 
 
 def record(message="hello"):

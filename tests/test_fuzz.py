@@ -7,8 +7,8 @@ property-testing dependency is required.
 import random
 import string
 
-from log4p import CronExpression, Level, LogRecord, PatternLayout
-from log4p.config import substitute_variables
+from log4p2 import CronExpression, Level, LogRecord, PatternLayout
+from log4p2.config import substitute_variables
 
 PATTERN_CHARS = list("%{}:$mpcndltXF[]()-0123456789abcdefghij " + string.ascii_letters)
 

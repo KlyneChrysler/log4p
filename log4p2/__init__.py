@@ -1,8 +1,8 @@
-"""log4p - a log4j-inspired logging framework for Python.
+"""log4p2 - a log4j-inspired logging framework for Python.
 
 Public entry points mirror log4j's API shape:
 
-    from log4p import getLogger, Level, ConsoleAppender, PatternLayout
+    from log4p2 import getLogger, Level, ConsoleAppender, PatternLayout
 
     logger = getLogger("myapp.db")
     logger.setLevel(Level.DEBUG)

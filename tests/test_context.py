@@ -1,4 +1,4 @@
-from log4p import MDC, NDC
+from log4p2 import MDC, NDC
 
 
 def test_mdc_put_get_remove():

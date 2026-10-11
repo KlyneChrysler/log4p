@@ -1,7 +1,7 @@
 import pytest
 
-from log4p import Level, addLevel, getLevel, getLevelNames
-from log4p.levels import ALL, OFF
+from log4p2 import Level, addLevel, getLevel, getLevelNames
+from log4p2.levels import ALL, OFF
 
 
 def test_standard_levels_and_ordering():

@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     LogRecord,
@@ -12,7 +12,7 @@ from log4p import (
     SyslogLayout,
     getLogger,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 @pytest.fixture(autouse=True)
@@ -121,7 +121,7 @@ def test_rfc5424_layout_end_to_end_roundtrip_exception():
 
 
 def test_config_builds_syslog_layouts():
-    from log4p import config as log4p_config
+    from log4p2 import config as log4p_config
 
     buf = io.StringIO()
     log4p_config.dictConfig(

@@ -1,13 +1,13 @@
 import io
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     LogRecord,
     PatternLayout,
     RoutingAppender,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 def record(context=None):
@@ -64,7 +64,7 @@ def test_routing_appender_get_route():
 
 
 def test_routing_appender_config_builds_children(monkeypatch):
-    from log4p import config as log4p_config
+    from log4p2 import config as log4p_config
 
     a, b = io.StringIO(), io.StringIO()
     log4p_config.dictConfig(
@@ -92,7 +92,7 @@ def test_routing_appender_config_builds_children(monkeypatch):
     root = getLoggerManager().root
     router = root.getAppenders()[0]
     assert isinstance(router, RoutingAppender)
-    from log4p import MDC
+    from log4p2 import MDC
 
     MDC.put("route", "a")
     root.info("first")

@@ -1,6 +1,6 @@
 import io
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     ErrorHandler,
     FallbackErrorHandler,
@@ -9,7 +9,7 @@ from log4p import (
     PatternLayout,
     getLogger,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 class FailingAppender(ConsoleAppender):

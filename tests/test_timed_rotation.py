@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from log4p import Level, LogRecord, PatternLayout, TimedRotatingFileAppender
+from log4p2 import Level, LogRecord, PatternLayout, TimedRotatingFileAppender
 
 
 def record(message="line", level=Level.INFO):

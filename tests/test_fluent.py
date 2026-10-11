@@ -1,11 +1,11 @@
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     Level,
     LogBuilder,
     PatternLayout,
     getLogger,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 def _configure(pattern="%p %m"):
@@ -41,7 +41,7 @@ def test_fluent_disabled_is_lazy(capsys):
 
 
 def test_fluent_with_marker(capsys):
-    from log4p import getMarker
+    from log4p2 import getMarker
 
     root = _configure("%marker %m")
     root.atInfo().withMarker(getMarker("AUDIT")).log("login")

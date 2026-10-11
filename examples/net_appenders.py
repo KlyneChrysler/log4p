@@ -6,7 +6,7 @@ Starts a local loopback listener so the example is self-contained.
 import socket
 import threading
 
-from log4p import Level, PatternLayout, SocketAppender, SyslogAppender, getLogger
+from log4p2 import Level, PatternLayout, SocketAppender, SyslogAppender, getLogger
 
 # --- TCP listener --------------------------------------------------------------
 tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1,6 +1,6 @@
 """Minimal log4p usage: build a logger, appender, and layout in code."""
 
-from log4p import MDC, ConsoleAppender, Level, PatternLayout, getLogger
+from log4p2 import MDC, ConsoleAppender, Level, PatternLayout, getLogger
 
 logger = getLogger("myapp.db")
 logger.setLevel(Level.DEBUG)

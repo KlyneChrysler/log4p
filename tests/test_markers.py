@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     FilterReply,
     Level,
@@ -13,7 +13,7 @@ from log4p import (
     getMarker,
     getMarkerNames,
 )
-from log4p.logger import getLoggerManager
+from log4p2.logger import getLoggerManager
 
 
 @pytest.fixture(autouse=True)
@@ -30,7 +30,7 @@ def test_marker_registry_returns_same_instance():
 
 
 def test_marker_requires_name():
-    from log4p import Marker
+    from log4p2 import Marker
 
     with pytest.raises(ValueError):
         Marker("")
@@ -96,7 +96,7 @@ def test_marker_filter_rejects_bad_mode():
 
 
 def test_marker_manager_facade():
-    from log4p import MarkerManager
+    from log4p2 import MarkerManager
 
     marker = MarkerManager.getMarker("MGR")
     assert marker is getMarker("MGR")

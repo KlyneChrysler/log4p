@@ -1,6 +1,6 @@
 """Markers, stack traces, and the logfmt / XML / HTML layouts."""
 
-from log4p import (
+from log4p2 import (
     ConsoleAppender,
     HTMLLayout,
     Level,
