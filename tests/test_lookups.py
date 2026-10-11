@@ -109,3 +109,25 @@ def test_ctx_lookup_in_config_layout(monkeypatch):
 @pytest.mark.parametrize("pattern", ["${ctx:missing}", "${env:__NOPE__}"])
 def test_empty_lookups_render_empty(pattern):
     assert render(pattern, record()) == ""
+
+
+def test_lower_upper_lookups(monkeypatch):
+    monkeypatch.setenv("LOG4P_CASE", "MiXeD")
+    assert render("${lower:ABC}", record()) == "abc"
+    assert render("${upper:abc}", record()) == "ABC"
+    assert render("${lower:${env:LOG4P_CASE}}", record()) == "mixed"
+    assert render("${upper:${ctx:req}}", record({"req": "abc"})) == "ABC"
+
+
+def test_date_lookup_uses_format():
+    import time
+
+    year = render("${date:%Y}", record())
+    assert year == time.strftime("%Y")
+    assert render("${date:yyyy}", record()) == time.strftime("%Y")
+
+
+def test_lower_upper_with_no_argument():
+    assert render("${lower:}", record()) == ""
+    assert render("${upper:}", record()) == ""
+

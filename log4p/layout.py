@@ -602,8 +602,10 @@ def _make_lookup(content: str) -> Callable[[LogRecord], str]:
     """Build a per-event ``${kind:name}`` lookup token.
 
     Supported kinds: ``ctx`` (MDC/context), ``env`` (environment), ``sys``
-    (interpreter attribute), and ``marker``. Unknown kinds are left as literal
-    text so patterns using other lookup syntax pass through unchanged.
+    (interpreter attribute), ``marker``, ``date`` (current time), and ``lower``
+    / ``upper`` (case-shifted, with nested lookup support). Unknown kinds are
+    left as literal text so patterns using other lookup syntax pass through
+    unchanged.
     """
     kind, sep, rest = content.partition(":")
 
@@ -643,6 +645,23 @@ def _make_lookup(content: str) -> Callable[[LogRecord], str]:
             return str(record.marker) if record.marker is not None else ""
 
         return marker
+
+    if kind == "date":
+        fmt = rest or None
+
+        def date(_record: LogRecord) -> str:
+            return format_timestamp(time.time(), fmt)
+
+        return date
+
+    if kind in ("lower", "upper"):
+        inner = _compile(rest) if rest else []
+        transform = str.lower if kind == "lower" else str.upper
+
+        def case(record: LogRecord) -> str:
+            return transform("".join(token(record) for token in inner))
+
+        return case
 
     return _literal_token("${" + content + "}")
 

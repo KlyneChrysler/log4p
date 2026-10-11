@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Pattern lookups `${date:format}` (current time) and `${lower:...}` /
+  `${upper:...}` (case-shifting, with nested lookups).
 - `CronRollingFileAppender` rolls on a cron schedule, backed by the exported
   `CronExpression` parser (five- or six-field expressions with lists, ranges,
   steps, and month/day names).
