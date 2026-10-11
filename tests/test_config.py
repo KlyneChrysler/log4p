@@ -750,4 +750,55 @@ def test_dictconfig_dynamic_threshold_filter():
     assert built.default_threshold.name == "ERROR"
 
 
+def test_dictconfig_logger_level_filters():
+    from log4p import LevelMatchFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "loggers": {
+                "svc": {
+                    "level": "DEBUG",
+                    "appenders": ["console"],
+                    "filters": [{"class": "LevelMatchFilter", "level": "ERROR"}],
+                }
+            },
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    logger = getLogger("svc")
+    built = logger.getFilters()[0]
+    assert isinstance(built, LevelMatchFilter)
+    assert built.level.name == "ERROR"
+
+
+def test_dictconfig_root_filters():
+    from log4p import AcceptAllFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {
+                "level": "DEBUG",
+                "appenders": ["console"],
+                "filters": [{"class": "AcceptAllFilter"}],
+            },
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    built = getRootLogger().getFilters()[0]
+    assert isinstance(built, AcceptAllFilter)
+
+
 

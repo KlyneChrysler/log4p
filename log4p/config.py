@@ -342,6 +342,8 @@ def dictConfig(config: Mapping[str, Any]) -> None:
             root.setLevel(root_cfg["level"])
         for name in root_cfg.get("appenders", []):
             root.addAppender(_lookup_appender(appenders, name))
+        for filter_spec in root_cfg.get("filters", []) or []:
+            root.addFilter(_build_filter(filter_spec))
 
     for name, lcfg in logger_cfgs.items():
         logger = getLogger(name)
@@ -352,6 +354,8 @@ def dictConfig(config: Mapping[str, Any]) -> None:
             logger.setAdditivity(bool(additive))
         for appender_name in lcfg.get("appenders", []):
             logger.addAppender(_lookup_appender(appenders, appender_name))
+        for filter_spec in lcfg.get("filters", []) or []:
+            logger.addFilter(_build_filter(filter_spec))
 
     return None
 
