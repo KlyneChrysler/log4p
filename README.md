@@ -1,9 +1,9 @@
-# log4p
+# log4p2
 
 A log4j-inspired logging framework for Python: named loggers, appenders, layouts, filters, markers, and file/dict config.
 
 ```python
-from log4p import getLogger, PatternLayout, ConsoleAppender
+from log4p2 import getLogger, PatternLayout, ConsoleAppender
 
 logger = getLogger("myapp.db")
 logger.setLevel("DEBUG")
@@ -28,11 +28,11 @@ pip install -e .   # Python 3.9+, only dependency: PyYAML
 - **Filters:** threshold, level, regex, marker, context, burst, time-of-day; combine with And/Or/Not.
 - **Context:** MDC/NDC per thread and asyncio task; markers with inheritance.
 - **Config:** dict, YAML or JSON with `${env:...}` substitution and auto-reload.
-- **Interop:** route stdlib `logging` into log4p and back.
+- **Interop:** route stdlib `logging` into log4p2 and back.
 
 ## How it compares
 
-| Feature | log4p | stdlib `logging` | structlog | loguru |
+| Feature | log4p2 | stdlib `logging` | structlog | loguru |
 |---|---|---|---|---|
 | Built-in JSON output | Yes | No (custom formatter) | Yes (flat, cleanest) | Yes (verbose) |
 | Caller info in output (file:line) | Yes | Yes | Needs extra processor | Yes |
