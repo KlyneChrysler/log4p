@@ -6,6 +6,7 @@ syntax), and :class:`JSONLayout`.
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
 import re
@@ -54,8 +55,46 @@ def _java_to_strftime(fmt: str) -> str:
     return fmt
 
 
-def _strftime_with_millis(created: float, fmt: str) -> str:
-    text = time.strftime(fmt, time.localtime(created))
+def _time_struct(created: float, timezone: Optional[str]):
+    if not timezone:
+        return time.localtime(created)
+    resolved = _resolve_timezone(timezone)
+    if resolved is None:
+        return time.localtime(created)
+    return time.gmtime(created + _tz_offset(resolved, created))
+
+
+def _resolve_timezone(name: str):
+    key = name.strip()
+    if key.upper() in ("UTC", "GMT", "Z"):
+        return datetime.timezone.utc
+    match = re.fullmatch(
+        r"(?:GMT|UTC)?([+-])(\d{1,2})(?::?(\d{2}))?", key, re.IGNORECASE
+    )
+    if match:
+        sign = 1 if match.group(1) == "+" else -1
+        delta = datetime.timedelta(
+            hours=int(match.group(2)), minutes=int(match.group(3) or 0)
+        )
+        return datetime.timezone(sign * delta)
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # pragma: no cover - Python < 3.9
+        return None
+    try:
+        return ZoneInfo(key)
+    except Exception:
+        return None
+
+
+def _tz_offset(resolved, created: float) -> float:
+    dt = datetime.datetime.fromtimestamp(created, resolved)
+    offset = dt.utcoffset()
+    return offset.total_seconds() if offset else 0.0
+
+
+def _strftime_with_millis(created: float, fmt: str, timezone: Optional[str] = None) -> str:
+    text = time.strftime(fmt, _time_struct(created, timezone))
     millis = int((created - int(created)) * 1000)
     text = text.replace("\x01A\x01", f"{millis:03d}")
     text = text.replace("\x01B\x01", f"{millis // 10:02d}")
@@ -63,16 +102,22 @@ def _strftime_with_millis(created: float, fmt: str) -> str:
     return text
 
 
-def format_timestamp(created: float, fmt: Optional[str] = None) -> str:
-    """Format *created* using a preset name, a Java pattern, or strftime."""
+def format_timestamp(
+    created: float, fmt: Optional[str] = None, timezone: Optional[str] = None
+) -> str:
+    """Format *created* using a preset name, a Java pattern, or strftime.
+
+    *timezone* is an IANA name (``America/New_York``), ``UTC``/``GMT``, or a
+    fixed offset such as ``GMT+2`` / ``UTC-05:00``; the default is local time.
+    """
     if not fmt:
         fmt = "DEFAULT"
     preset = _TIME_PRESETS.get(fmt.upper())
     if preset is not None:
         fmt = preset
     if "%" in fmt:
-        return _strftime_with_millis(created, fmt)
-    return _strftime_with_millis(created, _java_to_strftime(fmt))
+        return _strftime_with_millis(created, fmt, timezone)
+    return _strftime_with_millis(created, _java_to_strftime(fmt), timezone)
 
 
 _ANSI_RESET = "\x1b[0m"
@@ -371,7 +416,8 @@ class PatternLayout(Layout):
     Supported conversions::
 
         %c{precision} / %logger   logger name (optionally rightmost segments)
-        %d{format}   / %date      timestamp (preset, Java pattern, or strftime)
+        %d{format}{tz} / %date  timestamp (preset, Java pattern, or strftime;
+                                optional timezone: UTC, GMT+2, IANA name)
         %m / %msg / %message      formatted message
         %p / %level               level name
         %t / %thread              thread name
@@ -737,8 +783,9 @@ def _make_converter(
             precision = int(digits) if digits and digits.isdigit() else None
         return wrap(lambda r: _logger_name(r, precision, full=True, abbreviate=abbreviate))
     if name in ("d", "date"):
-        fmt = option
-        return wrap(lambda r: format_timestamp(r.created, fmt))
+        fmt = options[0] if options else None
+        tz = options[1] if len(options) > 1 else None
+        return wrap(lambda r: format_timestamp(r.created, fmt, tz))
     if name in ("m", "msg", "message"):
         return wrap(lambda r: r.getMessage())
     if name in ("p", "level"):

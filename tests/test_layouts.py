@@ -385,4 +385,40 @@ def test_pattern_throwable_empty_without_exception():
     assert PatternLayout("%throwable").format(record) == ""
 
 
+def test_pattern_date_timezone_utc():
+    import time
+
+    record = make_record()
+    record.created = 1_700_000_000.0
+    expected = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(record.created))
+    assert PatternLayout("%d{yyyy-MM-dd HH:mm:ss}{UTC}").format(record) == expected
+
+
+def test_pattern_date_fixed_offset():
+    import time
+
+    record = make_record()
+    record.created = 1_700_000_000.0
+    expected = time.strftime("%H:%M:%S", time.gmtime(record.created + 7200))
+    assert PatternLayout("%d{HH:mm:ss}{GMT+2}").format(record) == expected
+
+
+def test_pattern_date_iana_timezone():
+    import datetime
+
+    record = make_record()
+    record.created = 1_700_000_000.0
+    dt = datetime.datetime.fromtimestamp(
+        record.created, datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+    )
+    expected = dt.strftime("%H:%M")
+    assert PatternLayout("%d{HH:mm}{+05:30}").format(record) == expected
+
+
+def test_pattern_date_invalid_timezone_falls_back_to_local():
+    record = make_record()
+    out = PatternLayout("%d{HH:mm}").format(record)
+    assert PatternLayout("%d{HH:mm}{Not/AZone}").format(record) == out
+
+
 

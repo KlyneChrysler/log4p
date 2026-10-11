@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Optional timezone in `%d{format}{timezone}` (`UTC`, `GMT+2`, `+05:30`, or any
+  IANA name via `zoneinfo`).
 - Pattern converters `%seq` / `%sn` / `%sequenceNumber` (per-event sequence),
   `%sd` / `%structuredData` (RFC 5424 structured data from context), and
   extended throwable options on `%throwable` / `%ex` / `%rEx` / `%xEx`

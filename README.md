@@ -75,7 +75,7 @@ The full log4j conversion vocabulary is supported:
 | Conversion | Meaning | Example |
 |------------|---------|---------|
 | `%c` / `%logger` | Logger name (`%c{2}` = rightmost 2 segments) | `myapp.db` |
-| `%d{fmt}` / `%date` | Timestamp — preset (`ISO8601`, `ABSOLUTE`, `DATE`), Java pattern (`HH:mm:ss,SSS`), or strftime | `2026-10-11 05:09:01` |
+| `%d{fmt}{tz}` / `%date` | Timestamp — preset (`ISO8601`, `ABSOLUTE`, `DATE`), Java pattern (`HH:mm:ss,SSS`), or strftime; optional timezone (`UTC`, `GMT+2`, `America/New_York`) | `2026-10-11 05:09:01` |
 | `%m` / `%msg` | Formatted message | `connected` |
 | `%p` / `%level` | Level name | `INFO` |
 | `%t` / `%thread` | Thread name | `MainThread` |
