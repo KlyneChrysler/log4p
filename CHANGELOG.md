@@ -16,6 +16,8 @@ All notable changes to log4p are documented here. This project follows
   alias for `%encode`.
 - `JSONLayout` gains `includeThreadContext`, `includeTimeMillis`,
   `stacktraceAsString`, and `propertiesAsList` options.
+- `MarkerManager` (facade over the marker registry), `Marker.hasParents`, and
+  `NDC.getImmutableStack` / `removeStack` / `clearStack` aliases.
 - `CallableFilter` matches on an arbitrary Python predicate (log4j2
   `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the

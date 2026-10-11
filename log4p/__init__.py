@@ -69,7 +69,7 @@ from .layout import (
 from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
 from .logger import LogBuilder, Logger, getLogger, getRootLogger, shutdown
 from .mail import SMTPAppender
-from .marker import Marker, getMarker, getMarkerNames
+from .marker import Marker, MarkerManager, getMarker, getMarkerNames
 from .message import MapMessage, Message, StringMapMessage, StructuredDataMessage
 from .net import HttpAppender, SocketAppender, SyslogAppender
 from .record import LogRecord
@@ -92,6 +92,7 @@ __all__ = [
     "getLevelNames",
     "LogRecord",
     "Marker",
+    "MarkerManager",
     "getMarker",
     "getMarkerNames",
     "Message",

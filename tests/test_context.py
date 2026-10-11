@@ -81,3 +81,19 @@ def test_ndc_helpers():
     assert NDC.remove() == "b"
     NDC.clear()
     assert NDC.isEmpty()
+
+
+def test_ndc_immutable_stack_and_remove_stack():
+    NDC.clear()
+    NDC.push("x")
+    NDC.push("y")
+    snapshot = NDC.getImmutableStack()
+    assert snapshot == ["x", "y"]
+    snapshot.append("z")
+    assert NDC.getStack() == ["x", "y"]
+    NDC.removeStack()
+    assert NDC.isEmpty()
+    NDC.push("q")
+    NDC.clearStack()
+    assert NDC.isEmpty()
+

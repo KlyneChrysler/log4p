@@ -93,3 +93,18 @@ def test_pattern_marker_empty_when_absent():
 def test_marker_filter_rejects_bad_mode():
     with pytest.raises(ValueError):
         MarkerFilter("X", on_match="maybe")
+
+
+def test_marker_manager_facade():
+    from log4p import MarkerManager
+
+    marker = MarkerManager.getMarker("MGR")
+    assert marker is getMarker("MGR")
+    assert "MGR" in MarkerManager.getMarkerNames()
+
+
+def test_marker_has_parents():
+    assert not getMarker("SOLO").hasParents()
+    parent = getMarker("P1")
+    assert getMarker("C1", parents=[parent]).hasParents()
+

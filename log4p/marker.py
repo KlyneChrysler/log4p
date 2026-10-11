@@ -29,6 +29,9 @@ class Marker:
     def getParents(self) -> list:
         return list(self.parents)
 
+    def hasParents(self) -> bool:
+        return bool(self.parents)
+
     def add(self, parent: "Marker") -> "Marker":
         if parent not in self.parents:
             self.parents.append(parent)
@@ -76,3 +79,20 @@ def getMarker(name: str, parents: Optional[list] = None) -> Marker:
 
 def getMarkerNames() -> list:
     return sorted(_REGISTRY.keys())
+
+
+class MarkerManager:
+    """log4j-style facade over the marker registry (:func:`getMarker`)."""
+
+    @staticmethod
+    def getMarker(name: str, parents: Optional[list] = None) -> Marker:
+        return getMarker(name, parents)
+
+    @staticmethod
+    def getMarkerNames() -> list:
+        return getMarkerNames()
+
+    @staticmethod
+    def clear() -> None:
+        with _LOCK:
+            _REGISTRY.clear()

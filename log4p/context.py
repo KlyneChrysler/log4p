@@ -126,6 +126,18 @@ class NDC:
         return list(current) if current else []
 
     @staticmethod
+    def getImmutableStack() -> List[str]:
+        """Alias for :meth:`getStack` (log4j ``getImmutableStack``)."""
+        return NDC.getStack()
+
+    @staticmethod
+    def removeStack() -> None:
+        """Clear the whole stack (log4j ``removeStack``)."""
+        _ndc.set(None)
+
+    clearStack = removeStack
+
+    @staticmethod
     def clear() -> None:
         _ndc.set(None)
 
