@@ -44,6 +44,7 @@ import json
 import os
 import re
 import sys
+import threading
 from typing import Any, Dict, Mapping, Optional
 
 from .appender import (
@@ -404,8 +405,20 @@ def _lookup_appender(appenders: Dict[str, Appender], name: str) -> Appender:
         raise ValueError(f"configuration references unknown appender {name!r}") from None
 
 
-def fileConfig(path: str, format: Optional[str] = None) -> None:
-    """Load a YAML/JSON config file and apply it via :func:`dictConfig`."""
+def fileConfig(
+    path: str, format: Optional[str] = None, monitorInterval: Optional[float] = None
+) -> None:
+    """Load a YAML/JSON config file and apply it via :func:`dictConfig`.
+
+    When *monitorInterval* is a positive number of seconds, a daemon thread
+    watches the file and re-applies the configuration (log4j2's
+    ``monitorInterval``). A falsy value stops watching *path*.
+    """
+    _load_file(path, format)
+    _configure_watcher(path, format, monitorInterval)
+
+
+def _load_file(path: str, format: Optional[str]) -> None:
     ext = (format or os.path.splitext(path)[1]).lstrip(".").lower()
     with open(path, "r", encoding="utf-8") as handle:
         text = handle.read()
@@ -420,6 +433,58 @@ def fileConfig(path: str, format: Optional[str] = None) -> None:
             ) from exc
         data = yaml.safe_load(text)
     dictConfig(data)
+
+
+class _ConfigWatcher:
+    """Poll a config file and reload it when its mtime changes."""
+
+    def __init__(self, path: str, format: Optional[str], interval: float) -> None:
+        self.path = path
+        self.format = format
+        self.interval = interval
+        self._stop = threading.Event()
+        self._mtime = self._current_mtime()
+        self._thread = threading.Thread(
+            target=self._run, name=f"log4p-config-watch:{path}", daemon=True
+        )
+        self._thread.start()
+
+    def _current_mtime(self) -> Optional[float]:
+        try:
+            return os.path.getmtime(self.path)
+        except OSError:  # pragma: no cover - file removed
+            return None
+
+    def _run(self) -> None:
+        while not self._stop.wait(self.interval):
+            mtime = self._current_mtime()
+            if mtime is None or mtime == self._mtime:
+                continue
+            self._mtime = mtime
+            try:
+                _load_file(self.path, self.format)
+            except Exception as exc:  # noqa: BLE001 - keep the previous config
+                sys.stderr.write(
+                    f"log4p: failed to reload config {self.path!r}: {exc}\n"
+                )
+
+    def stop(self) -> None:
+        self._stop.set()
+
+
+_WATCHERS: Dict[str, _ConfigWatcher] = {}
+_WATCHERS_LOCK = threading.Lock()
+
+
+def _configure_watcher(
+    path: str, format: Optional[str], interval: Optional[float]
+) -> None:
+    with _WATCHERS_LOCK:
+        existing = _WATCHERS.pop(path, None)
+        if existing is not None:
+            existing.stop()
+        if interval and interval > 0:
+            _WATCHERS[path] = _ConfigWatcher(path, format, float(interval))
 
 
 def basicConfig(

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 
 import pytest
 
@@ -146,6 +147,53 @@ def test_fileconfig_json(tmp_path):
     payload = json.loads(buf.getvalue())
     assert payload["message"] == "json-msg"
     assert payload["level"] == "INFO"
+
+
+def _write_level_config(path, level, marker, mtime):
+    path.write_text(
+        f"""
+root:
+  level: {level}
+  appenders: [console]
+appenders:
+  console:
+    class: ConsoleAppender
+    layout:
+      class: PatternLayout
+      pattern: "{marker} %m"
+"""
+    )
+    os.utime(path, (mtime, mtime))
+
+
+def test_fileconfig_monitor_interval_reloads(tmp_path):
+    import time
+
+    path = tmp_path / "log4p.yaml"
+    now = time.time()
+    _write_level_config(path, "INFO", "one", now)
+    log4p_config.fileConfig(str(path), monitorInterval=0.05)
+    assert getRootLogger().getLevel().name == "INFO"
+
+    _write_level_config(path, "DEBUG", "two", now + 5)
+    deadline = time.time() + 3
+    while time.time() < deadline and getRootLogger().getLevel().name != "DEBUG":
+        time.sleep(0.02)
+    assert getRootLogger().getLevel().name == "DEBUG"
+
+    log4p_config._configure_watcher(str(path), None, None)
+    assert str(path) not in log4p_config._WATCHERS
+
+
+def test_fileconfig_stops_watcher(tmp_path):
+    import time
+
+    path = tmp_path / "log4p.yaml"
+    _write_level_config(path, "INFO", "x", time.time())
+    log4p_config.fileConfig(str(path), monitorInterval=0.05)
+    assert str(path) in log4p_config._WATCHERS
+    log4p_config.fileConfig(str(path), monitorInterval=0)
+    assert str(path) not in log4p_config._WATCHERS
 
 
 def test_basic_config_console():

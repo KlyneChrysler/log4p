@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `fileConfig(..., monitorInterval=N)` watches a config file and re-applies it
+  when it changes (log4j2's `monitorInterval`).
 - Pattern lookups `${date:format}` (current time) and `${lower:...}` /
   `${upper:...}` (case-shifting, with nested lookups).
 - `CronRollingFileAppender` rolls on a cron schedule, backed by the exported

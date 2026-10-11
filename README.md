@@ -421,6 +421,7 @@ The same structure loads from a file (YAML or JSON):
 
 ```python
 config.fileConfig("log4p.yaml")
+config.fileConfig("log4p.yaml", monitorInterval=30)  # auto-reload when changed
 ```
 
 Values may reference environment variables or interpreter attributes, with an
