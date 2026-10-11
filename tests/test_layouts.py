@@ -113,6 +113,45 @@ def test_json_layout_includes_exception():
     assert JSONLayout().ignoresExceptions is True
 
 
+def test_json_layout_compact():
+    out = JSONLayout(compact=True).format(make_record())
+    assert ", " not in out
+    assert '": "' not in out
+
+
+def test_json_layout_include_stacktrace_toggle():
+    try:
+        raise ValueError("bad")
+    except ValueError:
+        import sys
+
+        record = LogRecord(
+            name="x", level=Level.ERROR, message="oops", exc_info=sys.exc_info()
+        )
+    assert "exception" not in json.loads(
+        JSONLayout(includeStacktrace=False).format(record)
+    )
+
+
+def test_json_layout_properties_and_location():
+    data = json.loads(
+        JSONLayout(
+            properties={"app": "svc", "level": "KEEP"},
+            includeLocation=True,
+        ).format(make_record())
+    )
+    assert data["app"] == "svc"
+    assert data["level"] == "INFO"
+    assert data["source"]["file"] == "module.py"
+    assert data["source"]["method"] == "do_work"
+
+
+def test_json_layout_event_eol():
+    out = JSONLayout(eventEol=True).format(make_record())
+    assert out.endswith("\n")
+    assert not JSONLayout().format(make_record()).endswith("\n")
+
+
 def test_message_formatting_dict_args():
     record = LogRecord(
         name="x", level=Level.INFO, message="%(a)s-%(b)s", args={"a": 1, "b": 2}

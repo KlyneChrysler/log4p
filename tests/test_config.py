@@ -801,4 +801,39 @@ def test_dictconfig_root_filters():
     assert isinstance(built, AcceptAllFilter)
 
 
+def test_dictconfig_json_layout_options():
+    from log4p import JSONLayout
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {
+                        "class": "JSONLayout",
+                        "compact": True,
+                        "includeStacktrace": False,
+                        "includeLocation": True,
+                        "properties": {"app": "svc"},
+                    },
+                }
+            },
+        }
+    )
+    logger = getRootLogger()
+    layout = logger.getAppenders()[0].getLayout()
+    assert isinstance(layout, JSONLayout)
+    assert layout.compact is True
+    assert layout.includeStacktrace is False
+    assert layout.includeLocation is True
+    assert layout.properties == {"app": "svc"}
+    logger.info("hi")
+    data = json.loads(buf.getvalue())
+    assert data["app"] == "svc"
+    assert "source" in data
+
+
 

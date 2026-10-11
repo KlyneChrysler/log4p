@@ -228,21 +228,56 @@ class SimpleLayout(Layout):
 
 
 class JSONLayout(Layout):
-    """Render each record as a single-line JSON object."""
+    """Render each record as a single-line JSON object.
+
+    Options mirror log4j's ``JsonLayout``: ``compact`` drops whitespace,
+    ``includeStacktrace`` toggles the ``exception`` field, ``properties`` adds
+    static fields to every event, ``includeLocation`` adds a ``source`` object,
+    and ``eventEol`` appends a trailing newline.
+    """
 
     ignoresExceptions = True
 
-    def __init__(self, ensure_ascii: bool = False, sort_keys: bool = False) -> None:
+    def __init__(
+        self,
+        ensure_ascii: bool = False,
+        sort_keys: bool = False,
+        compact: bool = False,
+        includeStacktrace: bool = True,
+        includeLocation: bool = False,
+        eventEol: bool = False,
+        properties: Optional[Dict[str, object]] = None,
+    ) -> None:
         self.ensure_ascii = ensure_ascii
         self.sort_keys = sort_keys
+        self.compact = compact
+        self.includeStacktrace = includeStacktrace
+        self.includeLocation = includeLocation
+        self.eventEol = eventEol
+        self.properties = dict(properties) if properties else {}
 
     def format(self, record: LogRecord) -> str:
-        return json.dumps(
-            record.toDict(),
+        data = record.toDict()
+        if not self.includeStacktrace:
+            data.pop("exception", None)
+        if self.includeLocation:
+            data["source"] = {
+                "file": record.filename,
+                "line": record.lineno,
+                "method": record.funcName,
+                "class": record.module,
+            }
+        for key, value in self.properties.items():
+            data.setdefault(key, value)
+        separators = (",", ":") if self.compact else None
+        text = json.dumps(
+            data,
             ensure_ascii=self.ensure_ascii,
             sort_keys=self.sort_keys,
+            separators=separators,
             default=str,
         )
+        return text + "\n" if self.eventEol else text
 
 
 def _logfmt_value(value: object) -> str:

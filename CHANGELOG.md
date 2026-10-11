@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `JSONLayout` options: `compact`, `includeStacktrace`, `includeLocation`,
+  `eventEol`, and static `properties`.
 - `filters` on `root` and named `loggers` in dict/YAML config.
 - Structured messages: `MapMessage`, `StringMapMessage`, and
   `StructuredDataMessage`. Their key/value data is flattened into top-level
