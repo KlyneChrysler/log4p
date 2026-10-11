@@ -87,6 +87,7 @@ from .filter import (
 from .layout import (
     HTMLLayout,
     JSONLayout,
+    JsonTemplateLayout,
     Layout,
     LogfmtLayout,
     MarkerPatternSelector,
@@ -136,6 +137,7 @@ _REGISTRY = {
         SimpleLayout,
         PatternLayout,
         JSONLayout,
+        JsonTemplateLayout,
         LogfmtLayout,
         XMLLayout,
         HTMLLayout,

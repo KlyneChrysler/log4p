@@ -60,6 +60,7 @@ from .filter import (
 from .layout import (
     HTMLLayout,
     JSONLayout,
+    JsonTemplateLayout,
     Layout,
     LogfmtLayout,
     MarkerPatternSelector,
@@ -105,6 +106,7 @@ __all__ = [
     "SimpleLayout",
     "PatternLayout",
     "JSONLayout",
+    "JsonTemplateLayout",
     "LogfmtLayout",
     "XMLLayout",
     "HTMLLayout",

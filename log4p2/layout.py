@@ -12,9 +12,10 @@ import os
 import re
 import socket
 import sys
+import threading
 import time
 import traceback
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from .marker import getMarker
 from .record import LogRecord
@@ -1117,3 +1118,215 @@ def _make_converter(
         return wrap(lambda r: json.dumps(_message_data(r), default=str))
 
     return wrap(lambda r: raw)
+
+
+class JsonTemplateLayout(Layout):
+    """Render each record as JSON using a user-provided template (log4j2
+    ``JsonTemplateLayout`` analogue).
+
+    The template is a JSON object (dict or JSON string) where values can be:
+    - Static literals (strings, numbers, booleans, null, arrays, objects)
+    - Resolver expressions: ``$<resolver>{key}`` or ``$<resolver>{key:default}``
+
+    Supported resolvers:
+    - ``ctx`` / ``mdc``: MDC context (``$ctx{requestId}``, ``$ctx{key:default}``)
+    - ``key`` / ``K``: Logger context map (same as ctx in this impl)
+    - ``map``: MapMessage fields (``$map{userId}``)
+    - ``env``: Environment variables (``$env{HOSTNAME}``)
+    - ``sys``: Python sys module attributes (``$sys{version}``)
+    - ``date`` / ``time``: Timestamp (``$date{ISO8601}``, ``$date{yyyy-MM-dd}``)
+    - ``host`` / ``hostname``: Hostname
+    - ``pid`` / ``processId``: Process ID
+    - ``tid`` / ``threadId``: Thread ID
+    - ``thread`` / ``threadName``: Thread name
+    - ``logger`` / ``c``: Logger name
+    - ``level`` / ``p``: Level name
+    - ``message`` / ``msg`` / ``m``: Formatted message
+    - ``exception`` / ``ex`` / ``throwable``: Exception text (with options)
+    - ``stack``: Stack info text
+    - ``marker``: Marker name
+    - ``location`` / ``l``: ``module.function(file:line)``
+    - ``file`` / ``F``: Source filename
+    - ``line`` / ``L``: Source line number
+    - ``method`` / ``M``: Source method name
+    - ``class`` / ``C``: Source class/module
+    - ``relative`` / ``r``: Milliseconds since start
+    - ``nanos`` / ``N``: Nanoseconds since start
+    - ``sequenceNumber`` / ``seq`` / ``sn``: Per-event sequence number
+    - ``sd`` / ``structuredData``: RFC 5424 structured data
+    - ``properties``: Static properties from constructor
+
+    Example:
+        template = {
+            "timestamp": "$date{ISO8601}",
+            "level": "$level",
+            "logger": "$logger",
+            "message": "$message",
+            "thread": "$thread",
+            "mdc": "$ctx",
+            "exception": "$ex{short}",
+            "custom": {"app": "myapp", "version": "1.0"}
+        }
+        layout = JsonTemplateLayout(template)
+
+    """
+
+    ignoresExceptions = True
+
+    def __init__(
+        self,
+        template: Union[Dict[str, object], str],
+        ensure_ascii: bool = False,
+        sort_keys: bool = False,
+        compact: bool = False,
+        eventEol: bool = False,
+        properties: Optional[Dict[str, object]] = None,
+    ) -> None:
+        if isinstance(template, str):
+            self._template = json.loads(template)
+        else:
+            self._template = dict(template)
+        self.ensure_ascii = ensure_ascii
+        self.sort_keys = sort_keys
+        self.compact = compact
+        self.eventEol = eventEol
+        self.properties = dict(properties) if properties else {}
+        self._resolvers = self._build_resolvers()
+
+    def _build_resolvers(self) -> Dict[str, Callable[[LogRecord, str], object]]:
+        return {
+            "ctx": self._resolve_ctx,
+            "mdc": self._resolve_ctx,
+            "key": self._resolve_ctx,
+            "K": self._resolve_ctx,
+            "map": self._resolve_map,
+            "env": self._resolve_env,
+            "sys": self._resolve_sys,
+            "date": self._resolve_date,
+            "time": self._resolve_date,
+            "host": lambda r, _: _HOSTNAME,
+            "hostname": lambda r, _: _HOSTNAME,
+            "pid": lambda r, _: os.getpid(),
+            "processId": lambda r, _: os.getpid(),
+            "tid": lambda r, _: threading.get_ident(),
+            "threadId": lambda r, _: threading.get_ident(),
+            "thread": lambda r, _: threading.current_thread().name,
+            "threadName": lambda r, _: threading.current_thread().name,
+            "logger": lambda r, _: r.name,
+            "c": lambda r, _: r.name,
+            "level": lambda r, _: r.level.name,
+            "p": lambda r, _: r.level.name,
+            "message": lambda r, _: r.getMessage(),
+            "msg": lambda r, _: r.getMessage(),
+            "m": lambda r, _: r.getMessage(),
+            "exception": self._resolve_exception,
+            "ex": self._resolve_exception,
+            "throwable": self._resolve_exception,
+            "stack": lambda r, _: r.stack_info or "",
+            "marker": lambda r, _: str(r.marker) if r.marker else "",
+            "location": self._resolve_location,
+            "l": self._resolve_location,
+            "file": lambda r, _: r.filename,
+            "F": lambda r, _: r.filename,
+            "line": lambda r, _: r.lineno,
+            "L": lambda r, _: r.lineno,
+            "method": lambda r, _: r.funcName,
+            "M": lambda r, _: r.funcName,
+            "class": lambda r, _: r.module,
+            "C": lambda r, _: r.module,
+            "relative": lambda r, _: int(r.relativeCreated),
+            "r": lambda r, _: int(r.relativeCreated),
+            "nanos": lambda r, _: int(r.relativeCreated * 1_000_000),
+            "N": lambda r, _: int(r.relativeCreated * 1_000_000),
+            "sequenceNumber": lambda r, _: r.sequence,
+            "seq": lambda r, _: r.sequence,
+            "sn": lambda r, _: r.sequence,
+            "sd": self._resolve_sd,
+            "structuredData": self._resolve_sd,
+            "properties": lambda r, key: self.properties.get(key, ""),
+        }
+
+    def _resolve_ctx(self, record: LogRecord, spec: str) -> object:
+        if not spec:
+            return record.context
+        if ":-" in spec:
+            key, _, default = spec.partition(":-")
+            return record.context.get(key, default)
+        return record.context.get(spec, "")
+
+    def _resolve_map(self, record: LogRecord, spec: str) -> object:
+        data = _message_data(record)
+        if not spec:
+            return data
+        if ":-" in spec:
+            key, _, default = spec.partition(":-")
+            return data.get(key, default)
+        return data.get(spec, "")
+
+    def _resolve_env(self, _record: LogRecord, spec: str) -> object:
+        if not spec:
+            return {}
+        if ":-" in spec:
+            key, _, default = spec.partition(":-")
+            return os.environ.get(key, default)
+        return os.environ.get(spec, "")
+
+    def _resolve_sys(self, _record: LogRecord, spec: str) -> object:
+        if not spec:
+            return ""
+        if ":-" in spec:
+            key, _, default = spec.partition(":-")
+            return getattr(sys, key, default)
+        return getattr(sys, spec, "")
+
+    def _resolve_date(self, record: LogRecord, spec: str) -> str:
+        fmt = spec or "ISO8601"
+        tz = None
+        if "|" in fmt:
+            fmt, tz = fmt.split("|", 1)
+        return format_timestamp(record.created, fmt, tz)
+
+    def _resolve_exception(self, record: LogRecord, spec: str) -> object:
+        if not record.exc_info:
+            return ""
+        if spec and "short" in spec.lower():
+            return _format_throwable(record, "short")
+        return _format_throwable(record, spec)
+
+    def _resolve_location(self, record: LogRecord, _spec: str) -> str:
+        return f"{record.module}.{record.funcName}({record.filename}:{record.lineno})"
+
+    def _resolve_sd(self, record: LogRecord, spec: str) -> str:
+        sd_id = spec or "log4p2@32473"
+        return _format_structured_data(sd_id, record.context)
+
+    def _resolve(self, value: object, record: LogRecord) -> object:
+        if isinstance(value, str):
+            m = _TEMPLATE_RESOLVER_RE.match(value)
+            if m:
+                resolver, spec = m.group(1), m.group(2)
+                fn = self._resolvers.get(resolver)
+                if fn:
+                    return fn(record, spec)
+                return value
+            return value
+        elif isinstance(value, dict):
+            return {k: self._resolve(v, record) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._resolve(v, record) for v in value]
+        return value
+
+    def format(self, record: LogRecord) -> str:
+        data = self._resolve(self._template, record)
+        separators = (",", ":") if self.compact else None
+        text = json.dumps(
+            data,
+            ensure_ascii=self.ensure_ascii,
+            sort_keys=self.sort_keys,
+            separators=separators,
+            default=str,
+        )
+        return text + "\n" if self.eventEol else text
+
+
+_TEMPLATE_RESOLVER_RE = re.compile(r"^\$(\w+)\{(.*)\}$")

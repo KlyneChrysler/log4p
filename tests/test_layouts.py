@@ -189,6 +189,155 @@ def test_json_layout_stacktrace_as_frames():
     assert "file" in data["exception"][0]
 
 
+def test_json_template_layout_basic():
+    from log4p2 import JsonTemplateLayout
+
+    template = {
+        "ts": "$date{ISO8601}",
+        "level": "$level{}",
+        "logger": "$logger{}",
+        "msg": "$message{}",
+    }
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="my.logger", level=Level.INFO, message="hello")
+    data = json.loads(layout.format(record))
+    assert data["level"] == "INFO"
+    assert data["logger"] == "my.logger"
+    assert data["msg"] == "hello"
+    assert "ts" in data
+
+
+def test_json_template_layout_mdc():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"mdc": "$ctx{requestId}", "all": "$ctx{}"}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    record.context["requestId"] = "req-123"
+    record.context["user"] = "bob"
+    data = json.loads(layout.format(record))
+    assert data["mdc"] == "req-123"
+    assert data["all"]["requestId"] == "req-123"
+    assert data["all"]["user"] == "bob"
+
+
+def test_json_template_layout_mdc_default():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"mdc": "$ctx{missing:-default}"}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    data = json.loads(layout.format(record))
+    assert data["mdc"] == "default"
+
+
+def test_json_template_layout_map_message():
+    from log4p2 import JsonTemplateLayout, MapMessage
+
+    template = {"user": "$map{userId}", "all": "$map{}"}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.INFO, message=MapMessage({"userId": "u1", "action": "login"}))
+    data = json.loads(layout.format(record))
+    assert data["user"] == "u1"
+    assert data["all"]["userId"] == "u1"
+    assert data["all"]["action"] == "login"
+
+
+def test_json_template_layout_env_sys():
+    import os
+
+    from log4p2 import JsonTemplateLayout
+
+    os.environ["MY_VAR"] = "env-value"
+    template = {"env": "$env{MY_VAR}", "sys": "$sys{version}"}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    data = json.loads(layout.format(record))
+    assert data["env"] == "env-value"
+    assert data["sys"].startswith("3.")
+
+
+def test_json_template_layout_exception():
+    import sys
+
+    from log4p2 import JsonTemplateLayout
+
+    template = {"ex": "$ex{short}"}
+    layout = JsonTemplateLayout(template)
+    try:
+        raise ValueError("boom")
+    except ValueError:
+        record = LogRecord(name="x", level=Level.ERROR, message="fail", exc_info=sys.exc_info())
+    data = json.loads(layout.format(record))
+    assert "ValueError" in data["ex"]
+    assert "boom" in data["ex"]
+
+
+def test_json_template_layout_nested():
+    from log4p2 import JsonTemplateLayout
+
+    template = {
+        "event": {"ts": "$date{ISO8601}", "level": "$level{}"},
+        "static": {"app": "myapp", "version": 1},
+    }
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.WARN, message="m")
+    data = json.loads(layout.format(record))
+    assert data["event"]["level"] == "WARN"
+    assert data["static"]["app"] == "myapp"
+    assert data["static"]["version"] == 1
+
+
+def test_json_template_layout_list():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"tags": ["$level{}", "$logger{}", "fixed"]}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="my.log", level=Level.ERROR, message="m")
+    data = json.loads(layout.format(record))
+    assert data["tags"] == ["ERROR", "my.log", "fixed"]
+
+
+def test_json_template_layout_compact():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"a": 1, "b": "$level{}"}
+    layout = JsonTemplateLayout(template, compact=True)
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    text = layout.format(record)
+    assert text == '{"a":1,"b":"INFO"}'
+
+
+def test_json_template_layout_properties():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"static": "$properties{version}"}
+    layout = JsonTemplateLayout(template, properties={"version": "1.0"})
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    data = json.loads(layout.format(record))
+    assert data["static"] == "1.0"
+
+
+def test_json_template_layout_from_string():
+    from log4p2 import JsonTemplateLayout
+
+    template_str = '{"level": "$level{}", "msg": "$message{}"}'
+    layout = JsonTemplateLayout(template_str)
+    record = LogRecord(name="x", level=Level.ERROR, message="fail")
+    data = json.loads(layout.format(record))
+    assert data["level"] == "ERROR"
+    assert data["msg"] == "fail"
+
+
+def test_json_template_layout_date_timezone():
+    from log4p2 import JsonTemplateLayout
+
+    template = {"ts": "$date{ISO8601|UTC}"}
+    layout = JsonTemplateLayout(template)
+    record = LogRecord(name="x", level=Level.INFO, message="m")
+    data = json.loads(layout.format(record))
+    assert "ts" in data
+
 
 def test_message_formatting_dict_args():
     record = LogRecord(

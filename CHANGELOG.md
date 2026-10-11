@@ -21,6 +21,10 @@ All notable changes to log4p2 are documented here. This project follows
 - `CallableAppender` and `CallableRewritePolicy` (Python-callable appender /
   rewrite policy, the log4j2 script-plugin analogues). `RewriteAppender` now
   drops the event when its policy's `rewrite` returns `None`.
+- `JsonTemplateLayout` — log4j2-style JSON template layout with resolver
+  expressions (`$date{...}`, `$ctx{...}`, `$map{...}`, `$env{...}`, `$level{}`,
+  `$message{}`, `$ex{...}`, etc.), nested objects, arrays, static properties,
+  and timezone support (`$date{ISO8601|UTC}`).
 - `CallableFilter` matches on an arbitrary Python predicate (log4j2
   `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the
