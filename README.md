@@ -209,6 +209,14 @@ Loggers expose the usual level checks: `logger.isDebugEnabled()`,
 `isInfoEnabled()`, `isWarnEnabled()`, `isErrorEnabled()`, `isFatalEnabled()`,
 `isTraceEnabled()`.
 
+For lazy, chainable events use the fluent API (log4j2 style). The level is
+captured up front, so the record is only built when the logger is enabled:
+
+```python
+logger.atInfo().withMarker(audit).withContext("req", "R-9").log("login %s", user)
+logger.atError().withThrowable(exc).log("request failed")
+```
+
 Each appender takes an optional `threshold` and any number of filters:
 
 ```python

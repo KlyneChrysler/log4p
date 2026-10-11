@@ -53,7 +53,7 @@ from .layout import (
     XMLLayout,
 )
 from .levels import ALL, OFF, Level, addLevel, getLevel, getLevelNames
-from .logger import Logger, getLogger, getRootLogger, shutdown
+from .logger import LogBuilder, Logger, getLogger, getRootLogger, shutdown
 from .mail import SMTPAppender
 from .marker import Marker, getMarker, getMarkerNames
 from .net import SocketAppender, SyslogAppender
@@ -115,6 +115,7 @@ __all__ = [
     "ErrorHandler",
     "FallbackErrorHandler",
     "Logger",
+    "LogBuilder",
     "getLogger",
     "getRootLogger",
     "shutdown",

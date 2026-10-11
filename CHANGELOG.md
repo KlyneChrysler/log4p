@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Fluent logging API: `logger.atInfo().withMarker(...).withThrowable(...)
+  .withContext(k, v).log(msg, *args)` (level captured lazily).
 - Pattern converters `%l` / `%location`, `%N` / `%nanos`, `%env{NAME}` (with
   `:-default`), and `%markerSimpleName`; aliases `%processId`, `%threadId`,
   `%hostName`.

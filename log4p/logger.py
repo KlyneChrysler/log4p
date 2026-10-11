@@ -171,6 +171,28 @@ class Logger:
     def isFatalEnabled(self) -> bool:
         return self.isEnabledFor(FATAL)
 
+    # -- fluent API (log4j2 style) -------------------------------------
+    def atLevel(self, level: Union[str, int, Level]) -> "LogBuilder":
+        return LogBuilder(self, getLevel(level))
+
+    def atTrace(self) -> "LogBuilder":
+        return LogBuilder(self, TRACE)
+
+    def atDebug(self) -> "LogBuilder":
+        return LogBuilder(self, DEBUG)
+
+    def atInfo(self) -> "LogBuilder":
+        return LogBuilder(self, INFO)
+
+    def atWarn(self) -> "LogBuilder":
+        return LogBuilder(self, WARN)
+
+    def atError(self) -> "LogBuilder":
+        return LogBuilder(self, ERROR)
+
+    def atFatal(self) -> "LogBuilder":
+        return LogBuilder(self, FATAL)
+
     # -- internals -----------------------------------------------------
     def _log(
         self,
@@ -270,6 +292,64 @@ def _format_stack() -> str:
             continue
         lines.append(f'  File "{summary.filename}", line {summary.lineno}, in {summary.name}')
     return "\n".join(lines)
+
+
+class LogBuilder:
+    """Fluent, lazy event builder returned by ``Logger.at*()``.
+
+    The level is captured up front, so the record is only built and emitted by
+    :meth:`log` when the logger is actually enabled for that level::
+
+        logger.atInfo().withMarker(AUDIT).log("user %s logged in", user)
+    """
+
+    def __init__(self, logger: Logger, level: Level) -> None:
+        self.logger = logger
+        self.level = level
+        self.marker: Any = None
+        self.exc_info: Any = None
+        self.extra: dict = {}
+        self.stack_info = False
+        self.enabled = logger.isEnabledFor(level)
+
+    def isEnabled(self) -> bool:
+        return self.enabled
+
+    def withMarker(self, marker: Any) -> "LogBuilder":
+        self.marker = marker
+        return self
+
+    def withThrowable(self, exc: Any) -> "LogBuilder":
+        if exc is None or isinstance(exc, tuple):
+            self.exc_info = exc
+        elif isinstance(exc, BaseException):
+            self.exc_info = (type(exc), exc, exc.__traceback__)
+        else:
+            self.exc_info = True
+        return self
+
+    withException = withThrowable
+
+    def withContext(self, key: str, value: Any) -> "LogBuilder":
+        self.extra[key] = value
+        return self
+
+    def withStackInfo(self, flag: bool = True) -> "LogBuilder":
+        self.stack_info = flag
+        return self
+
+    def log(self, msg: Any, *args: Any) -> None:
+        if not self.enabled:
+            return
+        self.logger._log(
+            self.level,
+            msg,
+            args or None,
+            exc_info=self.exc_info,
+            extra=self.extra or None,
+            marker=self.marker,
+            stack_info=self.stack_info,
+        )
 
 
 class LoggerManager:
