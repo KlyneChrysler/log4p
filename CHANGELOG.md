@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `CallableFilter` matches on an arbitrary Python predicate (log4j2
+  `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the
   record's marker (with marker-hierarchy matching and a default).
 - `MapFilter` matches `MapMessage` events by key/value pairs (`and`/`or`).
@@ -24,6 +26,11 @@ All notable changes to log4p are documented here. This project follows
 - `MemoryAppender` captures rendered events and records in memory (with an
   optional `maxSize` ring limit) for tests and assertions.
 - `ConsoleAppender` gains an `immediateFlush` option (default `True`).
+
+### Changed
+
+- Added thread-safety stress tests, deterministic fuzz tests, and a
+  `benchmarks/benchmark.py` throughput harness.
 
 ## [0.2.0] - 2026-10-11
 

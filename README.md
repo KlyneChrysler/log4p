@@ -292,6 +292,8 @@ threshold per context value. `NoMarkerFilter` matches untagged records, and
 `StructuredDataMessage` records by their structured-data fields, and
 `MapFilter(properties={"svc": "checkout"})` matches `MapMessage` data.
 `TimeFilter("22:00", "06:00")` matches by time-of-day (wrapping midnight).
+`CallableFilter(lambda r: r.level >= WARN)` matches on any Python predicate
+(the log4j2 `ScriptFilter` analogue).
 
 Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
 (each `"accept"`, `"deny"`, or `"neutral"`, default `"neutral"` / `"deny"`),
@@ -456,6 +458,20 @@ See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
 `net_appenders.py`).
 Captured output for the demo lives in
 [`examples/output.md`](examples/output.md).
+
+## Testing & benchmarks
+
+```bash
+python3 -m pytest -q --cov=log4p     # unit, concurrency, and fuzz tests
+python3 benchmarks/benchmark.py       # throughput (default 200k events)
+python3 benchmarks/benchmark.py 500000 4   # 500k events across 4 threads
+```
+
+The suite includes thread-safety stress tests (`tests/test_concurrency.py`)
+and deterministic fuzz tests that feed malformed patterns, cron expressions,
+and config strings through the library (`tests/test_fuzz.py`). Appenders are
+guarded by a per-appender lock, so a single appender serializes writes;
+throughput is roughly 150k events/s per appender on a laptop.
 
 ## Why "log4p"?
 

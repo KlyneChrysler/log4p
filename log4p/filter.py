@@ -491,3 +491,19 @@ class NotFilter(Filter):
         if reply == FilterReply.DENY:
             return FilterReply.ACCEPT
         return FilterReply.NEUTRAL
+
+
+class CallableFilter(Filter):
+    """Filter backed by a Python predicate (the log4j2 ``ScriptFilter`` analogue).
+
+    *predicate* is called with the :class:`LogRecord` and its truthiness selects
+    ``onMatch`` / ``onMismatch`` (defaults ``"accept"`` / ``"neutral"``).
+    """
+
+    def __init__(self, predicate, onMatch="accept", onMismatch="neutral") -> None:
+        super().__init__(onMatch=onMatch, onMismatch=onMismatch)
+        self.predicate = predicate
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        return self._reply(bool(self.predicate(record)))
+

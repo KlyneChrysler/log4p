@@ -397,3 +397,12 @@ def test_time_filter_invalid_value():
         TimeFilter("25:00", "17:00")
 
 
+def test_callable_filter():
+    from log4p import CallableFilter
+
+    filt = CallableFilter(lambda r: r.level >= Level.WARN)
+    assert filt.decide(record(Level.DEBUG)) == FilterReply.NEUTRAL
+    assert filt.decide(record(Level.ERROR)) == FilterReply.ACCEPT
+
+
+
