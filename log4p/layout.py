@@ -694,6 +694,10 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
 
     while i < len(pattern):
         ch = pattern[i]
+        if ch == "$" and pattern[i + 1 : i + 2] == "$":
+            literal.append("$")
+            i += 2
+            continue
         if ch == "$" and i + 1 < len(pattern) and pattern[i + 1] == "{":
             content, after = _read_braced(pattern, i + 1)
             if content is not None:

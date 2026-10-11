@@ -145,7 +145,7 @@ _REGISTRY = {
 }
 
 
-_SUBST_RE = re.compile(r"\$\{([^}:]+):([^}]*)\}")
+_SUBST_RE = re.compile(r"(?<!\$)\$\{([^}:]+):([^}]*)\}")
 
 
 def _lookup_substitution(kind: str, expr: str) -> str:

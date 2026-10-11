@@ -43,6 +43,22 @@ def test_unknown_lookup_is_literal():
     assert render("${bundle:key}", record()) == "${bundle:key}"
 
 
+def test_dollar_escape_renders_literal_lookup():
+    assert render("$${ctx:key}", record({"ctx": "x"})) == "${ctx:key}"
+    assert render("$${env:HOME}", record()) == "${env:HOME}"
+
+
+def test_single_dollar_collapses():
+    assert render("$$", record()) == "$"
+    assert render("cost $$5", record()) == "cost $5"
+
+
+def test_config_escape_keeps_literal(monkeypatch):
+    monkeypatch.setenv("APP", "svc")
+    out = log4p_config.substitute_variables("$${env:APP} ${env:APP}")
+    assert out == "$${env:APP} svc"
+
+
 def test_lookup_mixed_with_pattern():
     rec = record({"user": "klyne"})
     assert render("[${ctx:user}] %p %m", rec) == "[klyne] INFO hi"

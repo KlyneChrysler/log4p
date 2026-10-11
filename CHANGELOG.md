@@ -8,6 +8,7 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `$${...}` escaping renders a literal `${...}` in patterns and config values.
 - `HttpAppender` POSTs (or GETs) each event to an HTTP endpoint, defaulting to
   a JSON body with optional headers and TLS verification toggle.
 - `FailoverAppender` tries a primary appender and falls back through a list of
