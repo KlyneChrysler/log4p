@@ -4,6 +4,28 @@ All notable changes to log4p2 are documented here. This project follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-12
+
+### Added
+- `LogRecord.copy()` and `exception_text` field for safe mutation by rewrite policies
+- Rewrite policies receive a shallow copy with pre-formatted exception text, enabling PII redaction in tracebacks
+- `BurstFilter` gained `denied` counter, `emitSummary`/`summaryInterval` options for periodic suppression summaries (log4j2 parity)
+- `FailoverAppender` gained `retryInterval` for automatic primary retry, `getFailureCount()` for observability
+- `AsyncAppender` gained `wal_path` (SQLite WAL for durability across crashes), `flush_interval` (periodic fsync), signal handlers (SIGTERM/SIGINT graceful drain)
+- `JsonTemplateLayout` — log4j2-style JSON template with resolver expressions (`$date{}`, `$ctx{}`, `$map{}`, `$env{}`, `$ex{}`, etc.), nested objects/arrays, timezone support
+- PatternLayout aliases: `%cn`/`%loggerName` (logger name), `%k` (MapMessage keys)
+
+### Fixed
+- **PII leak**: layouts now render `exception_text` when set by rewrite policies, enabling traceback redaction
+- **RewriteAppender mutation**: policies now receive a shallow copy; `MapRewritePolicy`/`PropertiesRewritePolicy` mutate the copy, not the shared record
+- **BurstFilter** level semantics fixed to match log4j2 (events at/below level rate-limited; events above bypass); silent drops fixed with `denied` counter and optional summaries
+- **FailoverAppender** no longer swallows errors silently; retries primary after interval; exposes failure counts
+- **AsyncAppender** dropped counter made thread-safe
+
+### Changed
+- `LogRecord.getExceptionText()` returns manually assigned `exception_text` if present, enabling policy-based redaction
+- Caller optimization: frame walking only when appenders/layouts need caller info (backward compatible default)
+
 ## [Unreleased]
 
 ### Added

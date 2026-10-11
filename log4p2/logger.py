@@ -199,11 +199,12 @@ class Logger:
 
     # -- internals -----------------------------------------------------
     def _needs_caller(self) -> bool:
-        """Check if any appender in the hierarchy exists (caller info may be accessed)."""
+        """Check if any appender in the hierarchy needs caller info."""
         logger = self
         while logger is not None:
-            if logger._appenders:
-                return True
+            for appender in logger._appenders:
+                if getattr(appender, "needs_caller", True):
+                    return True
             if not logger.additivity:
                 break
             logger = logger.parent

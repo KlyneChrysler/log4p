@@ -127,6 +127,20 @@ class Appender:
     def flush(self) -> None:
         pass
 
+    def _layout_needs_caller(self) -> bool:
+        """Check if the layout needs caller info."""
+        return hasattr(self._layout, "_needs_caller") and self._layout._needs_caller()
+
+    @property
+    def needs_caller(self) -> bool:
+        """Return True if this appender (or its layout) needs caller info.
+
+        Default is True for backward compatibility. Appenders that know they
+        don't need caller info can override this property or set
+        `_layout_needs_caller` to return False.
+        """
+        return True
+
     # -- core ----------------------------------------------------------
     def _render(self, record: LogRecord) -> str:
         text = self._layout.format(record)
@@ -142,7 +156,8 @@ class Appender:
 
     def _passes_filters(self, record: LogRecord) -> bool:
         for filt in self._filters:
-            reply = filt.decide(record)
+            # Pass appender to filters that support it (e.g., BurstFilter for summaries)
+            reply = filt.decide(record, appender=self)
             if reply == FilterReply.DENY:
                 return False
             if reply == FilterReply.ACCEPT:

@@ -115,7 +115,13 @@ class LogRecord:
         return self._formatted
 
     def getExceptionText(self) -> Optional[str]:
-        """Return formatted traceback text, caching the result."""
+        """Return formatted traceback text, caching the result.
+
+        If ``exception_text`` is already set (e.g., by a rewrite policy), it is
+        returned directly, allowing policies to redact or replace the traceback.
+        """
+        if self.exception_text is not None:
+            return self.exception_text
         if self.exc_info:
             if self.exc_text is None:
                 self.exc_text = "".join(traceback.format_exception(*self.exc_info))

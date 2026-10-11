@@ -54,21 +54,21 @@ class Filter:
     def _reply(self, matched: bool) -> FilterReply:
         return self.onMatch if matched else self.onMismatch
 
-    def decide(self, record: LogRecord) -> FilterReply:  # pragma: no cover
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:  # pragma: no cover
         return FilterReply.NEUTRAL
 
 
 class AcceptAllFilter(Filter):
     """Accept every record."""
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return FilterReply.ACCEPT
 
 
 class DenyAllFilter(Filter):
     """Deny every record."""
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return FilterReply.DENY
 
 
@@ -84,7 +84,7 @@ class ThresholdFilter(Filter):
         super().__init__(onMatch, onMismatch)
         self.level = getLevel(level)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return self._reply(int(record.level) >= int(self.level))
 
 
@@ -100,7 +100,7 @@ class LevelMatchFilter(Filter):
         super().__init__(onMatch, onMismatch)
         self.level = getLevel(level)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return self._reply(int(record.level) == int(self.level))
 
 
@@ -118,7 +118,7 @@ class LevelRangeFilter(Filter):
         self.min_level = getLevel(min_level)
         self.max_level = getLevel(max_level)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return self._reply(
             int(self.min_level) <= int(record.level) <= int(self.max_level)
         )
@@ -156,7 +156,7 @@ class RegexFilter(Filter):
         self.field = field
         self.on_match = on_match
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         if self.field == "message":
             value = record.getMessage()
         elif self.field == "name":
@@ -198,7 +198,7 @@ class MarkerFilter(Filter):
         self.marker = marker if hasattr(marker, "isInstanceOf") else getMarker(str(marker))
         self.on_match = on_match
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         present = bool(record.marker) and record.marker.isInstanceOf(self.marker)
         return self._reply(present)
 
@@ -225,7 +225,7 @@ class ContextMapFilter(Filter):
             raise ValueError("operator must be 'and' or 'or'")
         self.operator = op
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         if not self.properties:
             return self._reply(False)
         checks = (
@@ -259,7 +259,7 @@ class MapFilter(Filter):
             raise ValueError("operator must be 'and' or 'or'")
         self.operator = op
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         message = record.message
         if not isinstance(message, MapMessage):
             return self._reply(False)
@@ -299,7 +299,7 @@ class StructuredDataFilter(Filter):
             raise ValueError("operator must be 'and' or 'or'")
         self.operator = op
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         message = record.message
         if not isinstance(message, StructuredDataMessage):
             return self._reply(False)
@@ -336,7 +336,7 @@ class DynamicThresholdFilter(Filter):
         self.levels = {str(k): getLevel(v) for k, v in dict(levels).items()}
         self.default_threshold = getLevel(default_threshold)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         value = str(record.context.get(self.key, ""))
         threshold = self.levels.get(value, self.default_threshold)
         return self._reply(int(record.level) >= int(threshold))
@@ -348,7 +348,7 @@ class NoMarkerFilter(Filter):
     def __init__(self, onMatch="neutral", onMismatch="deny") -> None:
         super().__init__(onMatch, onMismatch)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return self._reply(record.marker is None)
 
 
@@ -385,7 +385,7 @@ class BurstFilter(Filter):
         self._tokens = float(maxBurst)
         self._last = time.monotonic()
         self._denied = 0
-        self._lastSummary = time.monotonic()
+        self._lastSummary = 0.0
 
     @property
     def denied(self) -> int:
@@ -422,7 +422,7 @@ class BurstFilter(Filter):
         from .record import LogRecord
         summary = LogRecord(
             name="log4p2.BurstFilter",
-            level=Level.WARN,
+            level=Level.FATAL,
             message=f"BurstFilter suppressed {denied} events in the last {self.summaryInterval:.0f}s (rate={self.rate}/s, maxBurst={self.maxBurst})",
         )
         try:
@@ -430,7 +430,7 @@ class BurstFilter(Filter):
         except Exception:
             pass
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         # Check if this event should bypass rate limiting
         # log4j2 semantics: events at or BELOW the level are rate-limited
         # events ABOVE the level bypass the limit
@@ -441,6 +441,8 @@ class BurstFilter(Filter):
         if not allowed:
             with self._lock:
                 self._denied += 1
+            if self.emitSummary and appender is not None:
+                self._maybe_emit_summary(appender)
         return self._reply(allowed)
 
 
@@ -459,7 +461,7 @@ class TimeFilter(Filter):
         self._start = _parse_time_of_day(start)
         self._end = _parse_time_of_day(end)
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         moment = datetime.fromtimestamp(record.created)
         current = moment.hour * 3600 + moment.minute * 60 + moment.second
         if self._start <= self._end:
@@ -500,7 +502,7 @@ class _CompositeFilter(Filter):
 class AndFilter(_CompositeFilter):
     """Accept only when every child accepts (deny on any denial)."""
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         if not self.filters:
             return FilterReply.NEUTRAL
         saw_neutral = False
@@ -516,7 +518,7 @@ class AndFilter(_CompositeFilter):
 class OrFilter(_CompositeFilter):
     """Accept when any child accepts (deny only when every child denies)."""
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         if not self.filters:
             return FilterReply.NEUTRAL
         all_deny = True
@@ -535,7 +537,7 @@ class NotFilter(Filter):
     def __init__(self, filter: Filter) -> None:
         self.filter = filter
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         reply = self.filter.decide(record)
         if reply == FilterReply.ACCEPT:
             return FilterReply.DENY
@@ -555,6 +557,6 @@ class CallableFilter(Filter):
         super().__init__(onMatch=onMatch, onMismatch=onMismatch)
         self.predicate = predicate
 
-    def decide(self, record: LogRecord) -> FilterReply:
+    def decide(self, record: LogRecord, appender=None) -> FilterReply:
         return self._reply(bool(self.predicate(record)))
 
