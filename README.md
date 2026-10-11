@@ -1,494 +1,69 @@
 # log4p
 
-A **log4j-inspired logging framework for Python**. Named loggers, appenders,
-layouts, filters, levels, and file/dict configuration — the pieces you know
-from log4j, expressed in idiomatic Python.
+A log4j-inspired logging framework for Python: named loggers, appenders, layouts, filters, markers, and file/dict config.
 
 ```python
 from log4p import getLogger, PatternLayout, ConsoleAppender
 
 logger = getLogger("myapp.db")
 logger.setLevel("DEBUG")
-logger.addAppender(ConsoleAppender(PatternLayout("%d{ISO8601} %-5p %c - %m%n")))
+logger.addAppender(ConsoleAppender(PatternLayout("%d{ISO8601} %-5p [%t] %c - %m%n")))
 
 logger.info("connected to %s", "orders-db")
-# 2026-10-11 05:09:01 INFO  myapp.db - connected to orders-db
+# 2026-10-12 01:04:57 INFO  [MainThread] myapp.db - connected to orders-db
 ```
 
 ## Install
 
 ```bash
-pip install -e .
+pip install -e .   # Python 3.9+, only dependency: PyYAML
 ```
 
-Requires Python 3.9+. The only runtime dependency is `PyYAML` (for YAML configs).
+## What you get
 
-## Concepts
+- **Hierarchy:** dotted logger names inherit level and appenders; additivity control.
+- **Levels:** TRACE, DEBUG, INFO, WARN, ERROR, FATAL, plus custom levels.
+- **Layouts:** `PatternLayout` (full log4j vocabulary), JSON, logfmt, XML, HTML, Simple.
+- **Appenders:** console, file, size/time/cron rotation, async, rewrite, routing, failover, socket, syslog, HTTP, SMTP, memory.
+- **Filters:** threshold, level, regex, marker, context, burst, time-of-day; combine with And/Or/Not.
+- **Context:** MDC/NDC per thread and asyncio task; markers with inheritance.
+- **Config:** dict, YAML or JSON with `${env:...}` substitution and auto-reload.
+- **Interop:** route stdlib `logging` into log4p and back.
 
-| log4j term | log4p | role |
-|------------|-------|------|
-| Logger | `Logger` | Named, hierarchical event source |
-| Level | `Level` | TRACE, DEBUG, INFO, WARN, ERROR, FATAL (+ OFF/ALL) |
-| Appender | `Appender` | Output destination (console, file, rotating file) |
-| Layout | `Layout` | Formats a record (`PatternLayout`, `SimpleLayout`, `JSONLayout`) |
-| Filter | `Filter` | Tri-state gate (`ACCEPT`/`DENY`/`NEUTRAL`) |
-| MDC / NDC | `MDC` / `NDC` | Per-context diagnostic data |
+## How it compares
 
-### Logger hierarchy
+| Feature | log4p | stdlib `logging` | structlog | loguru |
+|---|---|---|---|---|
+| Built-in JSON output | Yes | No (custom formatter) | Yes (flat, cleanest) | Yes (verbose) |
+| Caller info in output (file:line) | Yes | Yes | Needs extra processor | Yes |
+| log4j-style pattern language | Yes | No | No | No |
+| Context fields (MDC) | Yes | Via `extra` | Yes | Yes |
+| Hierarchical markers | Yes | No | No | No |
+| Size / time rotation | Yes | Yes | Delegates to stdlib | Yes |
+| Cron-based rotation | Yes | No | No | No |
+| Routing / failover / rewrite appenders | Yes | No | No | No |
+| Composable filters (And / Or / Not) | Yes | Partial | Via processors | Via function |
+| Two-way stdlib bridge | Yes | n/a | Yes | Partial |
+| Extra dependencies | PyYAML | None | structlog | loguru |
+| Maturity | New, not yet production-tested | Standard | Proven | Proven |
 
-Loggers are named with dots and inherit configuration from their nearest
-ancestor. `getLogger("myapp.db.pool")` automatically sits under
-`getLogger("myapp.db")`. Events walk up the chain until a logger with
-`additivity = False` is reached, exactly like log4j.
+Output formats for text, JSON, context and exceptions were checked by running the same events through all four. Other rows come from each library's documented features.
 
-```python
-from log4p import getLogger
+## Example output
 
-root = getLogger()
-root.setLevel("WARN")
-
-db = getLogger("myapp.db")
-db.setLevel("DEBUG")        # only this subtree logs at DEBUG
-db.setAdditivity(False)     # do not also send records to the root appenders
+```text
+2026-10-12 01:04:57 INFO  [MainThread] shop.checkout [r-1042] - user klyne started checkout
+2026-10-12 01:04:57 ERROR [MainThread] shop.checkout [r-1042] - payment gateway timeout after 3s
 ```
 
-## Levels
-
-```python
-from log4p import Level, addLevel
-
-Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR, Level.FATAL
-Level.OFF, Level.ALL
-
-# Custom levels are first-class:
-addLevel("VERBOSE", 15)
-logger.log("VERBOSE", "chatty")
+```json
+{"time": 1791735383.8, "level": "WARN", "logger": "order.svc", "message": "inventory low", "thread": "MainThread", "func": "main", "line": 11, "context": {"request_id": "r-123"}}
 ```
 
-Levels subclass `int`, so `Level.ERROR > Level.WARN` and
-`Level.INFO == 20` both hold and every `logging`-style comparison works.
-
-## PatternLayout
-
-The full log4j conversion vocabulary is supported:
-
-| Conversion | Meaning | Example |
-|------------|---------|---------|
-| `%c` / `%logger` | Logger name (`%c{2}` = rightmost 2 segments) | `myapp.db` |
-| `%d{fmt}{tz}` / `%date` | Timestamp — preset (`ISO8601`, `ABSOLUTE`, `DATE`), Java pattern (`HH:mm:ss,SSS`), or strftime; optional timezone (`UTC`, `GMT+2`, `America/New_York`) | `2026-10-11 05:09:01` |
-| `%m` / `%msg` | Formatted message | `connected` |
-| `%p` / `%level` | Level name | `INFO` |
-| `%t` / `%thread` | Thread name | `MainThread` |
-| `%r` / `%relative` | Milliseconds since start | `42` |
-| `%F` / `%file` | Source filename | `db.py` |
-| `%L` / `%line` | Source line number | `42` |
-| `%M` / `%method` | Source function | `connect` |
-| `%C` / `%class` | Source module | `db` |
-| `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key); `%X{key:-def}` for a default | `r-1` |
-| `%K{key}` | Context value (or whole map); `%K{key:-def}` for a default | `r-1` |
-| `%map{key}` | `MapMessage` field (or whole map); `%map{key:-def}` for a default | `checkout` |
-| `%x` / `%ndc` | NDC stack | `outer inner` |
-| `%marker` / `%markerSimpleName` | Marker attached to the record | `SQL` |
-| `%stack` | Stack trace from `stack_info=True` | |
-| `%throwable{opts}` / `%ex` / `%exception` / `%rEx` / `%xEx` | Traceback (`short`, `nolines`, `depth(N)`) | |
-| `%l` / `%location` | `module.function(file:line)` | `db.connect(db.py:42)` |
-| `%pid` / `%processId` | Process id | `8123` |
-| `%T` / `%tid` / `%threadId` | Thread id | `140234` |
-| `%N` / `%nanos` | Nanoseconds since start | `42000000` |
-| `%seq` / `%sn` / `%sequenceNumber` | Per-event sequence number | `15` |
-| `%sd{SDID}` / `%structuredData` | RFC 5424 structured data from context | `[log4p@32473 k="v"]` |
-| `%env{NAME}` | Environment variable; `%env{NAME:-def}` for a default | |
-| `%h` / `%host` / `%hostName` | Hostname | |
-| `%n` | Newline | |
-| `%%` | Literal `%` | |
-
-Format modifiers work: `%-5p` (left-justify, width 5), `%5p` (right-justify),
-`%.30m` (truncate to 30), `%-7.15c` (both). `%c{1.}` abbreviates ancestor
-segments to their first letter (`org.apache.commons.Foo` -> `o.a.c.Foo`).
-
-Per-event lookups can be embedded in the pattern and are resolved for every
-record: `${ctx:key}` (with `${ctx:key:-default}`), `${env:NAME}`,
-`${sys:attr}`, `${marker}`, `${date:format}` (current time), `${sd:key}` /
-`${map:key}` (structured-data or map message field), and the case-shifting
-`${lower:...}` / `${upper:...}` (which accept nested lookups). Lookups with a
-value accept a `:-default` fallback. Escape a literal `${...}` with `$${...}`.
-
-```python
-PatternLayout("[${ctx:requestId}] ${marker} %-5p %c - %m%n")
-```
-
-Selectors transform the result of an inner pattern (nested braces are handled):
-
-| Selector | Meaning |
-|----------|---------|
-| `%replace{pattern}{regex}{substitution}` | Replace regex matches in *pattern* |
-| `%equals{pattern}{test}{substitution}` | Replace literal *test* occurrences in *pattern* |
-| `%equalsIgnoreCase{pattern}{test}{substitution}` | Case-insensitive variant |
-| `%notEmpty{pattern}` | Output *pattern* only if its variables are all non-empty |
-| `%maxLen{pattern}{N}` | Truncate to *N* chars (adds `...` when *N* > 20) |
-| `%encode{pattern}{HTML\|XML\|JSON\|CRLF}` | Escape the inner result (`%enc` is an alias) |
-
-```python
-PatternLayout(r"%replace{%msg}{\s}{_}")      # spaces -> underscores
-PatternLayout("%notEmpty{[%marker]} %msg")   # hide "[marker]" when no marker
-PatternLayout("%maxLen{%m}{80}")             # truncate long messages
-PatternLayout("%encode{%m}{HTML}")           # HTML-escape the message
-```
-
-ANSI colour is supported for consoles that understand escapes:
-
-| Converter | Meaning |
-|-----------|---------|
-| `%highlight{pattern}{LEVEL=color, ...}` | Colour by level (FATAL/ERROR=red, WARN=yellow, INFO=green, DEBUG=cyan, TRACE=black) |
-| `%style{pattern}{name, ...}` | Apply a style (`bold`, `underline`, `cyan`, `bg_red`, ...) |
-| `%red{pattern}`, `%green{...}`, ... | Colour shorthand |
-
-```python
-PatternLayout("%highlight{%-5p} %style{%logger}{bold,cyan} %msg%n")
-```
-
-A `PatternLayout` can also switch patterns per marker via a `MarkerPatternSelector`
-(log4j2 style); markers match their ancestors too:
-
-```python
-from log4p import MarkerPatternSelector
-PatternLayout(
-    "%m%n",
-    selector=MarkerPatternSelector(
-        {"SQL": "SQL> %m%n", "AUDIT": "AUD> %m%n"}, default="%m%n"
-    ),
-)
-```
-
-`PatternLayout` also takes `alwaysWriteExceptions=False` (append the trace only
-where the pattern uses `%ex`), and `header=` / `footer=` strings that stream
-appenders write once at start/close.
-
-Other layouts:
-
-| Layout | Output |
-|--------|--------|
-| `SimpleLayout` | `LEVEL - message` |
-| `JSONLayout` | one JSON object per line (options: `compact`, `includeStacktrace`, `stacktraceAsString`, `includeLocation`, `includeThreadContext`, `includeTimeMillis`, `properties`, `propertiesAsList`, `eventEol`) |
-| `LogfmtLayout` | `level=info logger=... msg="..."` key-value pairs |
-| `XMLLayout` | one `<event>` element per record |
-| `HTMLLayout` | a full HTML table (header/footer written by stream appenders) |
-| `SyslogLayout` | RFC 3164 line with `<PRI>` header |
-| `RFC5424Layout` | RFC 5424 line (timestamp, host, app, procid, msgid, structured data) |
-
-## Appenders
-
-```python
-from log4p import (
-    ConsoleAppender,
-    FileAppender,
-    RotatingFileAppender,
-    TimedRotatingFileAppender,
-    SizeAndTimeBasedAppender,
-    AsyncAppender,
-    RewriteAppender,
-    MapRewritePolicy,
-    PropertiesRewritePolicy,
-    CallableRewritePolicy,
-    SocketAppender,
-    SyslogAppender,
-    SMTPAppender,
-    NullAppender,
-    CallableAppender,
-)
-
-ConsoleAppender(layout, target="stdout")     # or "stderr", or stream=...
-FileAppender("app.log", layout, append=True)
-RotatingFileAppender("app.log", maxBytes=10_000_000, backupCount=5, layout=...)
-TimedRotatingFileAppender("app.log", when="midnight", backupCount=7,
-                          compress=True, layout=...)
-SizeAndTimeBasedAppender("app.log", maxBytes=10_000_000, when="d",
-                         backupCount=7, compress=True, layout=...)
-AsyncAppender(FileAppender("app.log"), queue_size=4096, overflow="block")
-RewriteAppender(FileAppender("app.log"),
-                policy=MapRewritePolicy({"request_id": "req-42"}))
-SocketAppender("logs.internal", 5140, layout=PatternLayout("%m%n"))
-SyslogAppender("localhost", port=514, facility="LOCAL0", socktype="UDP")
-SyslogAppender("localhost", rfc5424=True, appName="svc", msgId="ID47")
-# SyslogLayout / RFC5424Layout render the full <PRI>-framed line and can be
-# attached to any appender (use them with SyslogAppender for custom framing).
-ConsoleAppender(SyslogLayout(facility="LOCAL0"))
-ConsoleAppender(RFC5424Layout(appName="svc", msgId="ID47"))
-SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
-             triggerLevel="ERROR")
-NullAppender()                               # discard everything
-```
-
-- `RotatingFileAppender` rolls on size (`maxBytes`); `TimedRotatingFileAppender`
-  rolls on a schedule (`when` = `S`/`M`/`H`/`D`/`midnight`/`W0`..`W6`,
-  optional `compress=True` to gzip old files, `backupCount` to expire them).
-- `SizeAndTimeBasedAppender` rolls on whichever comes first: the size limit or
-  the time period. Rotated files are `<file>.<timestamp>.<n>` so multiple rolls
-  in one period stay distinct.
-- `CronRollingFileAppender("app.log", cron="0 0 * * *")` rolls when a five- or
-  six-field cron expression matches (log4j's `CronTriggeringPolicy`); customise
-  the rotated-file name with a `strftime` `suffix`. `CronExpression` is exported
-  for reuse.
-- Size arguments accept strings: `maxBytes="10MB"`, `"512KB"`, `"1G"`.
-- Pass `onStartup=True` to any rolling appender to rotate an existing non-empty
-  file the first time it is opened (log4j's `OnStartupTriggeringPolicy`).
-- `AsyncAppender` wraps another appender and writes from a background thread so
-  slow targets never block the caller. `overflow="block"` waits for space (no
-  loss); `overflow="discard"` drops and counts via `appender.dropped`.
-- `RewriteAppender` runs a `RewritePolicy` over each record before delegating.
-  `MapRewritePolicy({"k": "v"}, mode="add"|"update")` adds/updates context (MDC)
-  entries; `PropertiesRewritePolicy({"region": "us-east-1"})` substitutes
-  `${key}` tokens in the message. `CallableRewritePolicy(fn)` runs any
-  `fn(record)`, returning the record to keep or `None` to drop the event.
-- `RoutingAppender({"prod": prod_appender}, key="env", default="prod")` sends
-  each event to a child appender chosen by a context value, with an optional
-  fallback route.
-- `FailoverAppender(primary, [backup])` writes to the primary appender and falls
-  back through the list when a write fails.
-- `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits syslog
-  over UDP or TCP (severity derived from the level) in RFC 3164 format, or RFC
-  5424 (`rfc5424=True`, with `appName`/`procId`/`msgId`). Both reconnect lazily
-  and throttle retries (`reconnectDelay`).
-- `HttpAppender("https://collector/log")` POSTs each event (JSON by default) to
-  an endpoint, with optional headers and `verifyHostname=False`.
-- `SMTPAppender` keeps a ring buffer of recent events and emails them (with the
-  triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
-  Supports `starttls`, `ssl`, and `username`/`password`.
-- `NullAppender` discards every event (a `/dev/null` sink).
-- `CallableAppender(fn)` forwards each record to a Python callable.
-- `MemoryAppender` captures rendered events and records in memory
-  (`getEvents()` / `getRecords()`, optional `maxSize`), handy for tests.
-- `ConsoleAppender` / `FileAppender` accept `immediateFlush` (default `True`).
-
-Loggers expose the usual level checks: `logger.isDebugEnabled()`,
-`isInfoEnabled()`, `isWarnEnabled()`, `isErrorEnabled()`, `isFatalEnabled()`,
-`isTraceEnabled()`.
-
-For lazy, chainable events use the fluent API (log4j2 style). The level is
-captured up front, so the record is only built when the logger is enabled:
-
-```python
-logger.atInfo().withMarker(audit).withContext("req", "R-9").log("login %s", user)
-logger.atError().withThrowable(exc).log("request failed")
-```
-
-Each appender takes an optional `threshold` and any number of filters:
-
-```python
-from log4p import (
-    ThresholdFilter, LevelMatchFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
-    ContextMapFilter, DynamicThresholdFilter,
-    AndFilter, OrFilter, NotFilter, AcceptAllFilter, DenyAllFilter,
-    NoMarkerFilter, BurstFilter,
-)
-
-appender.addFilter(ThresholdFilter("INFO"))            # level >= INFO
-appender.addFilter(LevelMatchFilter("ERROR"))          # exactly ERROR
-appender.addFilter(RegexFilter(r"timeout|failed", field="message"))
-appender.addFilter(MarkerFilter("SQL"))          # only records tagged SQL
-appender.addFilter(ContextMapFilter({"tenant": "acme"}))
-appender.addFilter(DynamicThresholdFilter("user", {"alice": "DEBUG"}))
-
-# Compose filters:
-appender.addFilter(AndFilter(ThresholdFilter("WARN"),
-                             RegexFilter(r"db-", field="name")))
-appender.addFilter(OrFilter(RegexFilter(r"audit"), RegexFilter(r"billing")))
-appender.addFilter(NotFilter(RegexFilter(r"healthcheck", field="message")))
-```
-
-`AndFilter` accepts only when every child accepts (any denial denies);
-`OrFilter` accepts when any child accepts; `NotFilter` inverts one child.
-All three build from config with nested `filters` / `filter` keys.
-`AcceptAllFilter` / `DenyAllFilter` accept or deny unconditionally.
-`ContextMapFilter({"k": "v"}, operator="and"|"or")` matches on MDC/context
-values, and `DynamicThresholdFilter("user", {"alice": "DEBUG"})` picks the
-threshold per context value. `NoMarkerFilter` matches untagged records, and
-`BurstFilter(rate=100, maxBurst=1000, level="ERROR")` rate-limits events.
-`StructuredDataFilter(properties={"user": "alice"}, type="audit")` matches
-`StructuredDataMessage` records by their structured-data fields, and
-`MapFilter(properties={"svc": "checkout"})` matches `MapMessage` data.
-`TimeFilter("22:00", "06:00")` matches by time-of-day (wrapping midnight).
-`CallableFilter(lambda r: r.level >= WARN)` matches on any Python predicate
-(the log4j2 `ScriptFilter` analogue).
-
-Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
-(each `"accept"`, `"deny"`, or `"neutral"`, default `"neutral"` / `"deny"`),
-so you can gate an appender on a match (`onMatch="accept"`):
-
-```python
-appender.addFilter(ThresholdFilter("ERROR", onMatch="accept"))  # ONLY errors
-```
-
-### Error handlers
-
-An appender that raises while appending consults its error handler. The default
-reports to `stderr`; `FallbackErrorHandler` swaps a dead primary appender for
-backup(s) so logging survives a full disk or a closed socket:
-
-```python
-from log4p import ErrorHandler, FallbackErrorHandler
-
-primary.setErrorHandler(ErrorHandler())          # report to stderr (default)
-
-fallback = FallbackErrorHandler()
-fallback.setAppender(primary)
-fallback.setBackupAppender(ConsoleAppender(PatternLayout("%m")))
-primary.setErrorHandler(fallback)                # on failure, backups take over
-```
-
-Appenders are flushed and stopped automatically on interpreter exit (`atexit`),
-so buffered/async output is not lost.
-
-## Standard library interop
-
-Keep using `logging.getLogger(...)` anywhere (including third-party code) and
-route it into log4p:
-
-```python
-from log4p import capture_stdlib, StdlibToLog4pHandler
-
-capture_stdlib("WARNING")                        # stdlib root -> log4p root
-logging.getLogger("myapp.lib").warning("routed") # lands in log4p appenders
-
-# or target a specific log4p logger:
-logging.getLogger("legacy").addHandler(StdlibToLog4pHandler("myapp.legacy"))
-```
-
-Level, caller info, `extra={...}` fields, and MDC all carry across. The reverse
-direction is available too:
-
-```python
-from log4p import StdlibLoggingAppender
-
-logger.addAppender(StdlibLoggingAppender(logging.getLogger("...") ))
-```
-
-## MDC / NDC
-
-```python
-from log4p import MDC, NDC
-
-MDC.put("request_id", "r-123")
-NDC.push("checkout")
-logger.info("order placed")   # %X{request_id} -> r-123, %x -> checkout
-NDC.pop()
-MDC.clear()
-```
-
-Both are isolated per thread / asyncio task.
-
-## Structured messages
-
-Pass a `MapMessage` instead of a string to emit typed key/value data. JSON and
-logfmt layouts flatten the data into top-level fields; `%m` renders
-`key="value"` pairs.
-
-```python
-from log4p import MapMessage, JSONLayout
-
-logger.info(MapMessage({"user": "bob", "id": 7}))
-# -> {"time": ..., "message": "user=\"bob\" id=\"7\"", "user": "bob", "id": 7, ...}
-```
-
-## Markers
-
-Markers are named (optionally hierarchical) tags you attach per call and filter on
-with `MarkerFilter`, mirroring log4j:
-
-```python
-from log4p import getMarker, MarkerFilter
-
-secure = getMarker("SECURITY")
-sql = getMarker("SQL")
-audit = getMarker("AUDIT", parents=[secure])   # audit "is a" security marker
-
-logger.info("SELECT 1", marker=sql)            # %marker -> SQL
-appender.addFilter(MarkerFilter(secure))       # passes audit too (inheritance)
-```
-
-## Stack traces
-
-Request a stack trace without an exception via `stack_info=True` (captured where
-you call the logger); render it with `%stack`. Exceptions render with
-`%throwable` / `%ex`:
-
-```python
-logger.info("where am I?", stack_info=True)
-logger.exception("failed")   # %throwable contains the traceback
-```
-
-## Configuration
-
-### Dict / YAML
-
-```python
-from log4p import config
-
-config.dictConfig({
-    "root": {"level": "WARN", "appenders": ["console"]},
-    "loggers": {
-        "myapp.db": {"level": "DEBUG", "appenders": ["console", "db_file"],
-                     "additive": False},
-    },
-    "appenders": {
-        "console": {
-            "class": "ConsoleAppender",
-            "target": "stdout",
-            "layout": {"class": "PatternLayout",
-                       "pattern": "%d{ISO8601} %-5p %c - %m%n"},
-        },
-        "db_file": {
-            "class": "RotatingFileAppender",
-            "filename": "logs/db.log",
-            "maxBytes": 1048576,
-            "backupCount": 3,
-            "layout": {"class": "JSONLayout"},
-            "filters": [{"class": "LevelRangeFilter", "min_level": "INFO"}],
-        },
-    },
-})
-```
-
-The same structure loads from a file (YAML or JSON):
-
-```python
-config.fileConfig("log4p.yaml")
-config.fileConfig("log4p.yaml", monitorInterval=30)  # auto-reload when changed
-```
-
-Values may reference environment variables or interpreter attributes, with an
-optional default: `${env:LOG_LEVEL:-INFO}`, `${env:HOME}`, `${sys:maxsize}`.
-Substitution is recursive and on by default; pass `"substitute": False` at the
-top level to disable it. Any component by short name (`LogfmtLayout`, `XMLLayout`,
-`HTMLLayout`, `MarkerFilter`, ...) or by dotted import path is available.
-
-Quick setup, similar to `logging.basicConfig`:
-
-```python
-config.basicConfig(level="INFO", filename="app.log")
-```
-
-See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
-`demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`,
-`patterns_and_filters.py`, `rolling_and_rewrite.py`, `cron_rolling.py`,
-`net_appenders.py`).
-Captured output for the demo lives in
-[`examples/output.md`](examples/output.md).
-
-## Testing & benchmarks
+## Test
 
 ```bash
-python3 -m pytest -q --cov=log4p     # unit, concurrency, and fuzz tests
-python3 benchmarks/benchmark.py       # throughput (default 200k events)
-python3 benchmarks/benchmark.py 500000 4   # 500k events across 4 threads
+python3 -m pytest -q
 ```
 
-The suite includes thread-safety stress tests (`tests/test_concurrency.py`)
-and deterministic fuzz tests that feed malformed patterns, cron expressions,
-and config strings through the library (`tests/test_fuzz.py`). Appenders are
-guarded by a per-appender lock, so a single appender serializes writes;
-throughput is roughly 150k events/s per appender on a laptop.
-
-## Why "log4p"?
-
-Log**4J** is for **J**ava. This is for **P**ython.
+MIT licensed.
