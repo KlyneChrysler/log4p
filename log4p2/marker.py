@@ -2,7 +2,7 @@
 
 A marker is a lightweight, possibly hierarchical label (``SQL``, ``AUDIT``).
 Attach one to a call with ``marker=`` and filter on it with
-:class:`~log4p.filter.MarkerFilter`.
+:class:`~log4p2.filter.MarkerFilter`.
 """
 
 from __future__ import annotations

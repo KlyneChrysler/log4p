@@ -1,7 +1,7 @@
 """Structured messages: typed payloads a logger can emit instead of a string.
 
-A :class:`MapMessage` carries key/value data that :class:`~log4p.layout.JSONLayout`
-and :class:`~log4p.layout.LogfmtLayout` emit as top-level fields while
+A :class:`MapMessage` carries key/value data that :class:`~log4p2.layout.JSONLayout`
+and :class:`~log4p2.layout.LogfmtLayout` emit as top-level fields while
 ``%m`` renders a readable ``key="value"`` form.
 """
 

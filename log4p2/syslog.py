@@ -3,7 +3,7 @@
 
 Both render a complete syslog line (including the ``<PRI>`` header) from a
 record, so they can be attached to any appender (a file, a socket, or
-:class:`~log4p.net.SyslogAppender`) and the correct framing is produced. The
+:class:`~log4p2.net.SyslogAppender`) and the correct framing is produced. The
 message body is rendered by a nested pattern (default ``%m``).
 """
 

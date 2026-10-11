@@ -100,7 +100,7 @@ class SocketAppender(Appender):
 class HttpAppender(Appender):
     """POST (or GET) each rendered event to an HTTP endpoint.
 
-    The layout defaults to :class:`~log4p.layout.JSONLayout`, so the body is a
+    The layout defaults to :class:`~log4p2.layout.JSONLayout`, so the body is a
     JSON object. *headers* adds request headers; ``verifyHostname=False`` skips
     TLS certificate verification.
     """

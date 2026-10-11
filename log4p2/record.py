@@ -17,7 +17,7 @@ _SEQUENCE = itertools.count(1)
 class LogRecord:
     """A single logging event.
 
-    Instances are created by :class:`~log4p.logger.Logger` and passed to every
+    Instances are created by :class:`~log4p2.logger.Logger` and passed to every
     appender in the logger hierarchy.  The shape deliberately mirrors log4j's
     ``LoggingEvent`` (and Python's ``logging.LogRecord``) so layouts have a
     stable contract to read from.
@@ -118,7 +118,7 @@ class LogRecord:
         return self.exc_text
 
     def toDict(self) -> Dict[str, Any]:
-        """A JSON-serialisable view used by :class:`~log4p.layout.JSONLayout`."""
+        """A JSON-serialisable view used by :class:`~log4p2.layout.JSONLayout`."""
         data: Dict[str, Any] = {
             "time": self.created,
             "level": self.level.name,

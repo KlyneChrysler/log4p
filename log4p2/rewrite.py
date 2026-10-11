@@ -1,7 +1,7 @@
 """Rewrite policies mutate a record before it reaches a delegate appender.
 
 Mirrors log4j's ``RewriteAppender``: a :class:`RewritePolicy` inspects (and may
-alter) each :class:`~log4p.record.LogRecord`, then the wrapped appender writes
+alter) each :class:`~log4p2.record.LogRecord`, then the wrapped appender writes
 the result.
 """
 

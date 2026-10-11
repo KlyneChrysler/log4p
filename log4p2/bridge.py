@@ -1,7 +1,7 @@
 """Interoperate with the standard library's :mod:`logging`.
 
 * :class:`StdlibToLog4pHandler` is a stdlib ``logging.Handler`` that forwards
-  records into a log4p :class:`~log4p.logger.Logger`, preserving level, caller
+  records into a log4p2 :class:`~log4p2.logger.Logger`, preserving level, caller
   info, and exception details.
 * :class:`StdlibLoggingAppender` is a log4p appender that forwards records into
   the stdlib ``logging`` system.

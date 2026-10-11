@@ -1,4 +1,4 @@
-"""Layouts turn a :class:`~log4p.record.LogRecord` into text.
+"""Layouts turn a :class:`~log4p2.record.LogRecord` into text.
 
 Provided layouts: :class:`SimpleLayout`, :class:`PatternLayout` (log4j pattern
 syntax), and :class:`JSONLayout`.

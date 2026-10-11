@@ -1,7 +1,7 @@
 """Appenders are the output destinations: console, files, rotating files.
 
-Every appender owns a :class:`~log4p.layout.Layout` and an optional list of
-:class:`~log4p.filter.Filter` objects that gate what it writes.
+Every appender owns a :class:`~log4p2.layout.Layout` and an optional list of
+:class:`~log4p2.filter.Filter` objects that gate what it writes.
 """
 
 from __future__ import annotations
@@ -867,7 +867,7 @@ class CallableAppender(Appender):
     """Forward each record to a Python callable (the log4j2 ``ScriptAppender``
     analogue).
 
-    *function* is called with the :class:`~log4p.record.LogRecord`; anything it
+    *function* is called with the :class:`~log4p2.record.LogRecord`; anything it
     does with the event (or the rendered ``self._render(record)``) is up to the
     caller. Exceptions raised by *function* are routed to the error handler.
     """
@@ -894,7 +894,7 @@ class CronRollingFileAppender(TimedRotatingFileAppender):
     ``CronTriggeringPolicy``).
 
     *cron* is a five- or six-field expression (see
-    :class:`~log4p.cron.CronExpression`). Rotated files are named
+    :class:`~log4p2.cron.CronExpression`). Rotated files are named
     ``<file>.<suffix>`` where *suffix* is a ``strftime`` format applied to the
     period start.
     """

@@ -171,7 +171,7 @@ class RegexFilter(Filter):
 class MarkerFilter(Filter):
     """Match records carrying *marker* (or a marker derived from it).
 
-    *marker* may be a :class:`~log4p.marker.Marker` or a name, which is looked
+    *marker* may be a :class:`~log4p2.marker.Marker` or a name, which is looked
     up (and created) in the marker registry.
     """
 
