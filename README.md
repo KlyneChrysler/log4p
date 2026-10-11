@@ -179,6 +179,9 @@ SMTPAppender("smtp.example.com", port=587, fromaddr="log@x", toaddrs=["ops@x"],
 - `SizeAndTimeBasedAppender` rolls on whichever comes first: the size limit or
   the time period. Rotated files are `<file>.<timestamp>.<n>` so multiple rolls
   in one period stay distinct.
+- Size arguments accept strings: `maxBytes="10MB"`, `"512KB"`, `"1G"`.
+- Pass `onStartup=True` to any rolling appender to rotate an existing non-empty
+  file the first time it is opened (log4j's `OnStartupTriggeringPolicy`).
 - `AsyncAppender` wraps another appender and writes from a background thread so
   slow targets never block the caller. `overflow="block"` waits for space (no
   loss); `overflow="discard"` drops and counts via `appender.dropped`.

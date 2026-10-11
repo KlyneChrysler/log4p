@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Human-readable size strings for `maxBytes` (e.g. `"10MB"`, `"512KB"`).
+- `onStartup=True` on rolling appenders to rotate an existing non-empty file on
+  first open (`OnStartupTriggeringPolicy`).
 - `SMTPAppender`: ring-buffered email alerts on severe events (STARTTLS/SSL,
   auth, pattern subjects).
 - `SocketAppender` (TCP) and `SyslogAppender` (RFC 3164 over UDP/TCP) network

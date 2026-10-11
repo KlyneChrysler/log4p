@@ -21,6 +21,39 @@ from .layout import Layout, PatternLayout
 from .levels import Level, getLevel
 from .record import LogRecord
 
+_SIZE_UNITS = {
+    "": 1,
+    "b": 1,
+    "k": 1024,
+    "kb": 1024,
+    "m": 1024**2,
+    "mb": 1024**2,
+    "g": 1024**3,
+    "gb": 1024**3,
+    "t": 1024**4,
+    "tb": 1024**4,
+}
+
+
+def parse_size(value: Union[int, str]) -> int:
+    """Turn ``"10MB"`` (or ``"10 MB"``, ``"1024"``, an int) into a byte count."""
+    if isinstance(value, int):
+        return value
+    text = str(value).strip().replace(" ", "")
+    number = ""
+    unit = ""
+    for index, ch in enumerate(text):
+        if ch.isdigit() or ch == ".":
+            number += ch
+        else:
+            unit = text[index:].lower()
+            break
+    if not number:
+        raise ValueError(f"invalid size: {value!r}")
+    if unit not in _SIZE_UNITS:
+        raise ValueError(f"unknown size unit: {unit!r}")
+    return int(float(number) * _SIZE_UNITS[unit])
+
 
 class Appender:
     """Base class for all appenders."""
@@ -200,6 +233,7 @@ class FileAppender(Appender):
         append: bool = True,
         encoding: str = "utf-8",
         immediateFlush: bool = True,
+        onStartup: bool = False,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -208,8 +242,22 @@ class FileAppender(Appender):
         self.append_mode = append
         self.encoding = encoding
         self.immediateFlush = immediateFlush
+        self.onStartup = onStartup
+        self._startup_rolled = False
         self._stream: Optional[TextIO] = None
         self._header_written = False
+
+    def _has_existing_data(self) -> bool:
+        try:
+            return os.path.exists(self.filename) and os.path.getsize(self.filename) > 0
+        except OSError:  # pragma: no cover
+            return False
+
+    def _needs_startup_roll(self) -> bool:
+        if not self.onStartup or self._startup_rolled:
+            return False
+        self._startup_rolled = True
+        return self._has_existing_data()
 
     def start(self) -> None:
         with self._lock:
@@ -275,12 +323,13 @@ class RotatingFileAppender(FileAppender):
     def __init__(
         self,
         filename: str,
-        maxBytes: int = 10 * 1024 * 1024,
+        maxBytes: Union[int, str] = 10 * 1024 * 1024,
         backupCount: int = 5,
         layout: Optional[Layout] = None,
         append: bool = True,
         encoding: str = "utf-8",
         immediateFlush: bool = True,
+        onStartup: bool = False,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -290,9 +339,11 @@ class RotatingFileAppender(FileAppender):
             append=append,
             encoding=encoding,
             immediateFlush=immediateFlush,
+            onStartup=onStartup,
             threshold=threshold,
             name=name,
         )
+        maxBytes = parse_size(maxBytes)
         if maxBytes <= 0:
             raise ValueError("maxBytes must be positive")
         if backupCount < 0:
@@ -300,16 +351,25 @@ class RotatingFileAppender(FileAppender):
         self.maxBytes = maxBytes
         self.backupCount = backupCount
 
+    def start(self) -> None:
+        with self._lock:
+            fresh = self._stream is None
+            super().start()
+            if not fresh:
+                return
+            if self._needs_startup_roll():
+                self._rotate()
+                return
+            try:
+                self._stream.seek(0, os.SEEK_END)
+                if self._stream.tell() >= self.maxBytes:
+                    self._rotate()
+            except OSError:
+                pass
+
     def _write(self, text: str) -> None:
         if self._stream is None:
             self.start()
-            if os.path.exists(self.filename):
-                try:
-                    self._stream.seek(0, os.SEEK_END)
-                    if self._stream.tell() >= self.maxBytes:
-                        self._rotate()
-                except OSError:
-                    pass
         encoded_len = len(text.encode(self.encoding))
         if self._stream.tell() + encoded_len > self.maxBytes:
             self._rotate()
@@ -451,6 +511,7 @@ class TimedRotatingFileAppender(FileAppender):
         layout: Optional[Layout] = None,
         encoding: str = "utf-8",
         immediateFlush: bool = True,
+        onStartup: bool = False,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -460,6 +521,7 @@ class TimedRotatingFileAppender(FileAppender):
             append=True,
             encoding=encoding,
             immediateFlush=immediateFlush,
+            onStartup=onStartup,
             threshold=threshold,
             name=name,
         )
@@ -482,6 +544,8 @@ class TimedRotatingFileAppender(FileAppender):
             super().start()
             if fresh:
                 self.rollover_at = self._compute_rollover(time.time())
+                if self._needs_startup_roll():
+                    self._rollover(time.time())
 
     def _write(self, text: str) -> None:
         if self._stream is None:
@@ -571,7 +635,7 @@ class SizeAndTimeBasedAppender(TimedRotatingFileAppender):
     def __init__(
         self,
         filename: str,
-        maxBytes: int = 10 * 1024 * 1024,
+        maxBytes: Union[int, str] = 10 * 1024 * 1024,
         when: str = "d",
         interval: int = 1,
         backupCount: int = 7,
@@ -580,6 +644,7 @@ class SizeAndTimeBasedAppender(TimedRotatingFileAppender):
         layout: Optional[Layout] = None,
         encoding: str = "utf-8",
         immediateFlush: bool = True,
+        onStartup: bool = False,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -593,9 +658,11 @@ class SizeAndTimeBasedAppender(TimedRotatingFileAppender):
             layout=layout,
             encoding=encoding,
             immediateFlush=immediateFlush,
+            onStartup=onStartup,
             threshold=threshold,
             name=name,
         )
+        maxBytes = parse_size(maxBytes)
         if maxBytes <= 0:
             raise ValueError("maxBytes must be positive")
         self.maxBytes = maxBytes

@@ -574,4 +574,25 @@ def test_dictconfig_smtp_appender():
     assert app.triggerLevel.name == "ERROR"
 
 
+def test_dictconfig_on_startup_and_size_string(tmp_path):
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["rolling"]},
+            "appenders": {
+                "rolling": {
+                    "class": "RotatingFileAppender",
+                    "filename": str(tmp_path / "app.log"),
+                    "maxBytes": "2MB",
+                    "backupCount": 3,
+                    "onStartup": True,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert app.maxBytes == 2 * 1024**2
+    assert app.onStartup is True
+
+
 
