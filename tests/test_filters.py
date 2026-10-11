@@ -324,6 +324,32 @@ def test_structured_data_filter_invalid_operator():
         StructuredDataFilter(properties={}, operator="xor")
 
 
+def test_map_filter_matches_map_message():
+    from log4p import MapFilter, MapMessage
+
+    filt = MapFilter(properties={"svc": "checkout"})
+    rec = record()
+    rec.message = MapMessage({"svc": "checkout"})
+    assert filt.decide(rec) == FilterReply.NEUTRAL
+    rec.message = MapMessage({"svc": "billing"})
+    assert filt.decide(rec) == FilterReply.DENY
+    assert filt.decide(record()) == FilterReply.DENY
+
+
+def test_map_filter_or_operator_and_empty():
+    from log4p import MapFilter, MapMessage
+
+    either = MapFilter(properties={"a": "1", "b": "2"}, operator="or")
+    rec = record()
+    rec.message = MapMessage({"b": "2"})
+    assert either.decide(rec) == FilterReply.NEUTRAL
+
+    anymap = MapFilter()
+    assert anymap.decide(rec) == FilterReply.NEUTRAL
+    assert anymap.decide(record()) == FilterReply.DENY
+
+
+
 def _at(hour, minute=0, second=0):
     from datetime import datetime, time
 

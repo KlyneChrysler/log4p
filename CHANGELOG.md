@@ -8,6 +8,7 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `MapFilter` matches `MapMessage` events by key/value pairs (`and`/`or`).
 - `fileConfig(..., monitorInterval=N)` watches a config file and re-applies it
   when it changes (log4j2's `monitorInterval`).
 - Pattern lookups `${date:format}` (current time) and `${lower:...}` /

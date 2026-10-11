@@ -1055,6 +1055,34 @@ def test_dictconfig_time_filter():
     assert built.end == "17:00"
 
 
+def test_dictconfig_map_filter():
+    from log4p import MapFilter, MapMessage
+
+    buf = io.StringIO()
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": buf,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {"class": "MapFilter", "properties": {"svc": "checkout"}}
+                    ],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, MapFilter)
+    getRootLogger().info(MapMessage({"svc": "checkout"}))
+    getRootLogger().info(MapMessage({"svc": "billing"}))
+    out = buf.getvalue()
+    assert "checkout" in out
+    assert "billing" not in out
+
+
 def test_dictconfig_structured_data_filter():
     from log4p import StructuredDataFilter, StructuredDataMessage
 

@@ -16,7 +16,7 @@ from enum import IntEnum
 from typing import Union
 
 from .levels import Level, getLevel
-from .message import StructuredDataMessage
+from .message import MapMessage, StructuredDataMessage
 from .record import LogRecord
 
 
@@ -230,6 +230,43 @@ class ContextMapFilter(Filter):
             return self._reply(False)
         checks = (
             str(record.context.get(key, "")) == str(value)
+            for key, value in self.properties.items()
+        )
+        matched = all(checks) if self.operator == "and" else any(checks)
+        return self._reply(matched)
+
+
+class MapFilter(Filter):
+    """Match :class:`MapMessage` records by their key/value data (log4j's
+    ``MapFilter``).
+
+    *properties* maps message keys to expected values. With ``operator="and"``
+    (default) every pair must match; with ``"or"`` any single pair suffices.
+    With no properties, any map message matches.
+    """
+
+    def __init__(
+        self,
+        properties=None,
+        operator: str = "and",
+        onMatch="neutral",
+        onMismatch="deny",
+    ) -> None:
+        super().__init__(onMatch, onMismatch)
+        self.properties = dict(properties or {})
+        op = operator.lower()
+        if op not in ("and", "or"):
+            raise ValueError("operator must be 'and' or 'or'")
+        self.operator = op
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        message = record.message
+        if not isinstance(message, MapMessage):
+            return self._reply(False)
+        if not self.properties:
+            return self._reply(True)
+        checks = (
+            str(message.data.get(key, "")) == str(value)
             for key, value in self.properties.items()
         )
         matched = all(checks) if self.operator == "and" else any(checks)

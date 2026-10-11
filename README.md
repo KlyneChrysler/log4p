@@ -277,6 +277,7 @@ threshold per context value. `NoMarkerFilter` matches untagged records, and
 `BurstFilter(rate=100, maxBurst=1000, level="ERROR")` rate-limits events.
 `StructuredDataFilter(properties={"user": "alice"}, type="audit")` matches
 `StructuredDataMessage` records by their structured-data fields, and
+`MapFilter(properties={"svc": "checkout"})` matches `MapMessage` data.
 `TimeFilter("22:00", "06:00")` matches by time-of-day (wrapping midnight).
 
 Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
