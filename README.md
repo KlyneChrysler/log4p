@@ -159,6 +159,10 @@ PatternLayout(
 )
 ```
 
+`PatternLayout` also takes `alwaysWriteExceptions=False` (append the trace only
+where the pattern uses `%ex`), and `header=` / `footer=` strings that stream
+appenders write once at start/close.
+
 Other layouts:
 
 | Layout | Output |

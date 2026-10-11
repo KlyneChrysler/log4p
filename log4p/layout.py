@@ -533,10 +533,20 @@ class PatternLayout(Layout):
     """
 
     def __init__(
-        self, pattern: str = "%m%n", selector: Optional[MarkerPatternSelector] = None
+        self,
+        pattern: str = "%m%n",
+        selector: Optional[MarkerPatternSelector] = None,
+        alwaysWriteExceptions: bool = True,
+        header: Optional[str] = None,
+        footer: Optional[str] = None,
     ) -> None:
         self.pattern = pattern
         self.selector = selector
+        self.alwaysWriteExceptions = alwaysWriteExceptions
+        if not alwaysWriteExceptions:
+            self.ignoresExceptions = True
+        self._header = header
+        self._footer = footer
         self._tokens: List[Callable[[LogRecord], str]] = _compile(pattern)
 
     def format(self, record: LogRecord) -> str:
@@ -545,6 +555,12 @@ class PatternLayout(Layout):
             if tokens is not None:
                 return "".join(token(record) for token in tokens)
         return "".join(token(record) for token in self._tokens)
+
+    def header(self) -> Optional[str]:
+        return self._header
+
+    def footer(self) -> Optional[str]:
+        return self._footer
 
 
 _SELECTOR_NAMES = [

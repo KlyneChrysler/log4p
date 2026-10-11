@@ -490,5 +490,57 @@ def test_marker_pattern_selector_hierarchy_and_default():
     assert layout.format(untagged) == "hi"
 
 
+def test_pattern_layout_header_footer():
+    layout = PatternLayout("%m%n", header="--- start ---\n", footer="--- end ---\n")
+    assert layout.header() == "--- start ---\n"
+    assert layout.footer() == "--- end ---\n"
+    assert PatternLayout("%m%n").header() is None
+
+
+def test_pattern_layout_always_write_exceptions_false():
+    import io
+
+    from log4p import ConsoleAppender, getLogger
+    from log4p.logger import getLoggerManager
+
+    getLoggerManager().clear()
+    buf = io.StringIO()
+    appender = ConsoleAppender(
+        PatternLayout("%m%n", alwaysWriteExceptions=False), stream=buf
+    )
+    logger = getLogger("layout.exc")
+    logger.setLevel("INFO")
+    logger.addAppender(appender)
+    try:
+        raise ValueError("nope")
+    except ValueError:
+        logger.exception("failed")
+    getLoggerManager().clear()
+    out = buf.getvalue()
+    assert "failed" in out
+    assert "ValueError" not in out
+
+
+def test_pattern_layout_always_write_exceptions_true_default():
+    import io
+
+    from log4p import ConsoleAppender, getLogger
+    from log4p.logger import getLoggerManager
+
+    getLoggerManager().clear()
+    buf = io.StringIO()
+    appender = ConsoleAppender(PatternLayout("%m%n"), stream=buf)
+    logger = getLogger("layout.exc2")
+    logger.setLevel("INFO")
+    logger.addAppender(appender)
+    try:
+        raise ValueError("kaboom")
+    except ValueError:
+        logger.exception("failed")
+    getLoggerManager().clear()
+    assert "ValueError: kaboom" in buf.getvalue()
+
+
+
 
 
