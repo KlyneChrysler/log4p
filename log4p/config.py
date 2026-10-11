@@ -159,14 +159,25 @@ def _lookup_substitution(kind: str, expr: str) -> str:
 
 
 def substitute_variables(value: Any) -> Any:
-    """Recursively replace ``${env:...}`` / ``${sys:...}`` in config values."""
+    """Recursively replace ``${env:...}`` / ``${sys:...}`` in config values.
+
+    Substitutions of other kinds (for example a ``${ctx:key}`` layout lookup)
+    are left untouched for the layout to resolve per event.
+    """
     if isinstance(value, str):
-        return _SUBST_RE.sub(lambda m: _lookup_substitution(m.group(1), m.group(2)), value)
+        return _SUBST_RE.sub(_substitute_match, value)
     if isinstance(value, Mapping):
         return {key: substitute_variables(val) for key, val in value.items()}
     if isinstance(value, list):
         return [substitute_variables(item) for item in value]
     return value
+
+
+def _substitute_match(match: "re.Match[str]") -> str:
+    try:
+        return _lookup_substitution(match.group(1), match.group(2))
+    except ValueError:
+        return match.group(0)
 
 
 def _resolve(name: str) -> type:

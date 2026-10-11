@@ -105,6 +105,14 @@ Format modifiers work: `%-5p` (left-justify, width 5), `%5p` (right-justify),
 `%.30m` (truncate to 30), `%-7.15c` (both). `%c{1.}` abbreviates ancestor
 segments to their first letter (`org.apache.commons.Foo` -> `o.a.c.Foo`).
 
+Per-event lookups can be embedded in the pattern and are resolved for every
+record: `${ctx:key}` (with `${ctx:key:-default}`), `${env:NAME}`,
+`${sys:attr}`, and `${marker}`.
+
+```python
+PatternLayout("[${ctx:requestId}] ${marker} %-5p %c - %m%n")
+```
+
 Selectors transform the result of an inner pattern (nested braces are handled):
 
 | Selector | Meaning |

@@ -11,6 +11,7 @@ import json
 import os
 import re
 import socket
+import sys
 import time
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -457,6 +458,13 @@ class PatternLayout(Layout):
     ``%c{1.}`` abbreviates ancestors to their first letter (e.g.
     ``o.a.c.Foo``). Format modifiers ``%[-][min][.max]`` are honoured, e.g.
     ``%-5p`` or ``%.30c``.
+
+    Per-event lookups may be embedded directly in the pattern::
+
+        ${ctx:key} / ${ctx:key:-default}   MDC/context value
+        ${env:NAME} / ${env:NAME:-default} environment variable
+        ${sys:attr}                        interpreter attribute
+        ${marker}                          marker name
     """
 
     def __init__(self, pattern: str = "%m%n") -> None:
@@ -544,6 +552,63 @@ def _literal_token(text: str) -> Callable[[LogRecord], str]:
     return token
 
 
+def _split_default(expr: str) -> Tuple[str, Optional[str]]:
+    if ":-" in expr:
+        name, _, default = expr.partition(":-")
+        return name, default
+    return expr, None
+
+
+def _make_lookup(content: str) -> Callable[[LogRecord], str]:
+    """Build a per-event ``${kind:name}`` lookup token.
+
+    Supported kinds: ``ctx`` (MDC/context), ``env`` (environment), ``sys``
+    (interpreter attribute), and ``marker``. Unknown kinds are left as literal
+    text so patterns using other lookup syntax pass through unchanged.
+    """
+    kind, sep, rest = content.partition(":")
+
+    if kind == "ctx":
+        name, default = _split_default(rest)
+
+        def ctx(record: LogRecord) -> str:
+            value = record.context.get(name)
+            if value is None:
+                return default if default is not None else ""
+            return str(value)
+
+        return ctx
+
+    if kind == "env":
+        name, default = _split_default(rest)
+
+        def env(_record: LogRecord) -> str:
+            value = os.environ.get(name)
+            if value is None:
+                return default if default is not None else ""
+            return str(value)
+
+        return env
+
+    if kind == "sys":
+
+        def sys_attr(_record: LogRecord) -> str:
+            value = getattr(sys, rest, None)
+            return "" if value is None else str(value)
+
+        return sys_attr
+
+    if not sep and kind == "marker":
+
+        def marker(record: LogRecord) -> str:
+            return str(record.marker) if record.marker is not None else ""
+
+        return marker
+
+    return _literal_token("${" + content + "}")
+
+
+
 def _read_braced(pattern: str, start: int) -> Tuple[Optional[str], int]:
     """Read a ``{...}`` group starting at *start*, honouring nesting.
 
@@ -590,6 +655,16 @@ def _compile(pattern: str) -> List[Callable[[LogRecord], str]]:
 
     while i < len(pattern):
         ch = pattern[i]
+        if ch == "$" and i + 1 < len(pattern) and pattern[i + 1] == "{":
+            content, after = _read_braced(pattern, i + 1)
+            if content is not None:
+                flush()
+                tokens.append(_make_lookup(content))
+                i = after
+                continue
+            literal.append(ch)
+            i += 1
+            continue
         if ch != "%":
             literal.append(ch)
             i += 1
