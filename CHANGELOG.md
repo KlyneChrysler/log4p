@@ -25,6 +25,8 @@ All notable changes to log4p2 are documented here. This project follows
   expressions (`$date{...}`, `$ctx{...}`, `$map{...}`, `$env{...}`, `$level{}`,
   `$message{}`, `$ex{...}`, etc.), nested objects, arrays, static properties,
   and timezone support (`$date{ISO8601|UTC}`).
+- PatternLayout: added `%cn` / `%loggerName` (alias for `%c` / `%logger`) and
+  `%k` (alias for `%map` MapMessage keys).
 - `CallableFilter` matches on an arbitrary Python predicate (log4j2
   `ScriptFilter` analogue).
 - `MarkerPatternSelector` lets a `PatternLayout` switch patterns based on the

@@ -640,7 +640,9 @@ _LONG_NAMES = _SELECTOR_NAMES + [
     "sequenceNumber",
     "message",
     "msg",
+    "loggerName",
     "logger",
+    "cn",
     "level",
     "threadName",
     "threadId",
@@ -653,6 +655,7 @@ _LONG_NAMES = _SELECTOR_NAMES + [
     "method",
     "class",
     "map",
+    "k",
     "mdc",
     "ndc",
     "markerSimpleName",
@@ -1030,7 +1033,7 @@ def _make_converter(
         color = name
         return wrap(lambda r: _wrap_ansi("".join(t(r) for t in sub), color))
 
-    if name in ("c", "logger"):
+    if name in ("c", "logger", "cn", "loggerName"):
         abbreviate = bool(option) and option.endswith(".")
         digits = option[:-1] if abbreviate else option
         if abbreviate:
@@ -1109,7 +1112,7 @@ def _make_converter(
             return wrap(lambda r: str(r.context.get(option, "")))
         return wrap(lambda r: json.dumps(r.context, default=str))
 
-    if name == "map":
+    if name in ("map", "k"):
         if option:
             if ":-" in option:
                 key, _, default = option.partition(":-")
