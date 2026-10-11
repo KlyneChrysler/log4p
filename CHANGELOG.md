@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `FailoverAppender` tries a primary appender and falls back through a list of
+  failover appenders on error.
 - `AsyncAppender` log4j2 options: `bufferSize`, `blocking`, and
   `discardingThreshold` (drop sub-`WARN` events when the queue is nearly full).
 - `NoMarkerFilter` (records without a marker) and `BurstFilter` (token-bucket

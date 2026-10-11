@@ -547,6 +547,65 @@ class RoutingAppender(Appender):
             appender.doAppend(record)
 
 
+class FailoverAppender(Appender):
+    """Try a *primary* appender and fall back through *failovers* on error.
+
+    The first appender that successfully writes an event becomes the active one
+    and is tried first on the next event (log4j's ``FailoverAppender``).
+    """
+
+    def __init__(
+        self,
+        primary: Appender,
+        failovers: Optional[List[Appender]] = None,
+        layout: Optional[Layout] = None,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(name=name, layout=layout, threshold=threshold)
+        self.primary = primary
+        self.failovers: List[Appender] = list(failovers) if failovers else []
+        self._active = 0
+
+    def _appenders(self) -> List[Appender]:
+        return [self.primary] + self.failovers
+
+    def getLayout(self) -> Layout:
+        return self._appenders()[self._active].getLayout()
+
+    def start(self) -> None:
+        with self._lock:
+            for appender in self._appenders():
+                appender.start()
+            self._started = True
+
+    def stop(self) -> None:
+        with self._lock:
+            for appender in self._appenders():
+                appender.stop()
+            self._started = False
+
+    def flush(self) -> None:
+        for appender in self._appenders():
+            appender.flush()
+
+    def append(self, record: LogRecord) -> None:
+        appenders = self._appenders()
+        count = len(appenders)
+        for offset in range(count):
+            index = (self._active + offset) % count
+            appender = appenders[index]
+            try:
+                if not appender.isStarted():
+                    appender.start()
+                appender.append(record)
+            except Exception:  # pragma: no cover - depends on the peer
+                continue
+            self._active = index
+            return
+        raise RuntimeError("all failover appenders failed")
+
+
 class TimedRotatingFileAppender(FileAppender):
     """Roll the file on a time schedule (like log4j's ``TimeBasedRollingPolicy``).
 

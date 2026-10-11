@@ -50,6 +50,7 @@ from .appender import (
     Appender,
     AsyncAppender,
     ConsoleAppender,
+    FailoverAppender,
     FileAppender,
     NullAppender,
     RotatingFileAppender,
@@ -100,6 +101,7 @@ _REGISTRY = {
     for cls in (
         Appender,
         ConsoleAppender,
+        FailoverAppender,
         FileAppender,
         NullAppender,
         RotatingFileAppender,
@@ -283,6 +285,28 @@ def _build_appender(spec: Any, built: Dict[str, Appender]) -> Appender:
                 target = built[target]
             resolved[route] = target
         spec["routes"] = resolved
+
+    primary = spec.get("primary")
+    if isinstance(primary, str):
+        if primary not in built:
+            raise ValueError(
+                f"failover appender references {primary!r}, which must be defined first"
+            )
+        spec["primary"] = built[primary]
+
+    failovers = spec.get("failovers")
+    if isinstance(failovers, list):
+        resolved = []
+        for target in failovers:
+            if isinstance(target, str):
+                if target not in built:
+                    raise ValueError(
+                        f"failover appender references {target!r}, which must be "
+                        "defined first"
+                    )
+                target = built[target]
+            resolved.append(target)
+        spec["failovers"] = resolved
 
     layout = _build_layout(spec.pop("layout", None))
     filters = spec.pop("filters", None) or []

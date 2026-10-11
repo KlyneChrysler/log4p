@@ -209,6 +209,8 @@ NullAppender()                               # discard everything
 - `RoutingAppender({"prod": prod_appender}, key="env", default="prod")` sends
   each event to a child appender chosen by a context value, with an optional
   fallback route.
+- `FailoverAppender(primary, [backup])` writes to the primary appender and falls
+  back through the list when a write fails.
 - `SocketAppender` ships rendered events over TCP; `SyslogAppender` emits syslog
   over UDP or TCP (severity derived from the level) in RFC 3164 format, or RFC
   5424 (`rfc5424=True`, with `appName`/`procId`/`msgId`). Both reconnect lazily
