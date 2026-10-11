@@ -217,6 +217,36 @@ def test_dictconfig_async_requires_prior_delegate():
         )
 
 
+def test_dictconfig_async_buffer_size_and_blocking():
+    from log4p import AsyncAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["async"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                },
+                "async": {
+                    "class": "AsyncAppender",
+                    "appender": "console",
+                    "bufferSize": 16,
+                    "blocking": False,
+                    "discardingThreshold": 3,
+                },
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, AsyncAppender)
+    assert app.queue_size == 16
+    assert app.overflow == "discard"
+    assert app.discardingThreshold == 3
+    app.stop()
+
+
 def test_dictconfig_fallback_error_handler():
     log4p_config.dictConfig(
         {

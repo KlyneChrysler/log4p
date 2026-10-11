@@ -18,7 +18,7 @@ from typing import List, Optional, TextIO, Tuple, Union
 from .error import ErrorHandler
 from .filter import Filter, FilterReply
 from .layout import Layout, PatternLayout
-from .levels import Level, getLevel
+from .levels import WARN, Level, getLevel
 from .record import LogRecord
 
 _SIZE_UNITS = {
@@ -410,17 +410,25 @@ class AsyncAppender(Appender):
         self,
         appender: Appender,
         queue_size: int = 1024,
-        overflow: str = "block",
+        overflow: Optional[str] = None,
         layout: Optional[Layout] = None,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
+        bufferSize: Optional[int] = None,
+        blocking: bool = True,
+        discardingThreshold: int = 0,
     ) -> None:
         super().__init__(name=name, layout=layout, threshold=threshold)
+        if bufferSize is not None:
+            queue_size = bufferSize
+        if overflow is None:
+            overflow = "block" if blocking else "discard"
         if overflow not in ("block", "discard"):
             raise ValueError("overflow must be 'block' or 'discard'")
         self.appender = appender
         self.queue_size = queue_size
         self.overflow = overflow
+        self.discardingThreshold = discardingThreshold
         self._queue: "queue.Queue" = queue.Queue(maxsize=queue_size)
         self._worker: Optional[threading.Thread] = None
         self._dropped = 0
@@ -460,6 +468,13 @@ class AsyncAppender(Appender):
     def append(self, record: LogRecord) -> None:
         if not self._started:
             self.start()
+        if (
+            self.discardingThreshold
+            and int(record.level) < int(WARN)
+            and self._queue.qsize() >= self.queue_size - self.discardingThreshold
+        ):
+            self._dropped += 1
+            return
         if self.overflow == "block":
             self._queue.put(record)
         else:
