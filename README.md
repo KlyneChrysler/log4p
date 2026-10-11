@@ -237,6 +237,7 @@ from log4p import (
     ThresholdFilter, LevelMatchFilter, LevelRangeFilter, RegexFilter, MarkerFilter,
     ContextMapFilter, DynamicThresholdFilter,
     AndFilter, OrFilter, NotFilter, AcceptAllFilter, DenyAllFilter,
+    NoMarkerFilter, BurstFilter,
 )
 
 appender.addFilter(ThresholdFilter("INFO"))            # level >= INFO
@@ -259,7 +260,8 @@ All three build from config with nested `filters` / `filter` keys.
 `AcceptAllFilter` / `DenyAllFilter` accept or deny unconditionally.
 `ContextMapFilter({"k": "v"}, operator="and"|"or")` matches on MDC/context
 values, and `DynamicThresholdFilter("user", {"alice": "DEBUG"})` picks the
-threshold per context value.
+threshold per context value. `NoMarkerFilter` matches untagged records, and
+`BurstFilter(rate=100, maxBurst=1000, level="ERROR")` rate-limits events.
 
 Level, range, regex, and marker filters take `onMatch` / `onMismatch` replies
 (each `"accept"`, `"deny"`, or `"neutral"`, default `"neutral"` / `"deny"`),

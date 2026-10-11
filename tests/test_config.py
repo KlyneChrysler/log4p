@@ -836,4 +836,28 @@ def test_dictconfig_json_layout_options():
     assert "source" in data
 
 
+def test_dictconfig_burst_filter():
+    from log4p import BurstFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "DEBUG", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [
+                        {"class": "BurstFilter", "rate": 5, "maxBurst": 10}
+                    ],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, BurstFilter)
+    assert built.rate == 5.0
+    assert built.maxBurst == 10
+
+
 

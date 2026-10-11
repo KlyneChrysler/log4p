@@ -1,9 +1,11 @@
 from log4p import (
     AndFilter,
+    BurstFilter,
     FilterReply,
     Level,
     LevelRangeFilter,
     LogRecord,
+    NoMarkerFilter,
     NotFilter,
     OrFilter,
     RegexFilter,
@@ -224,3 +226,48 @@ def test_dynamic_threshold_filter_accept_variant():
     )
     rec = record(Level.ERROR)
     assert filt.decide(rec) == FilterReply.ACCEPT
+
+
+def test_no_marker_filter():
+    rec = record()
+    assert NoMarkerFilter().decide(rec) == FilterReply.NEUTRAL
+    from log4p import Marker
+
+    rec.marker = Marker("SQL")
+    assert NoMarkerFilter().decide(rec) == FilterReply.DENY
+
+
+def test_no_marker_filter_custom_replies():
+    from log4p import Marker
+
+    filt = NoMarkerFilter(onMatch="accept", onMismatch="neutral")
+    assert filt.decide(record()) == FilterReply.ACCEPT
+    rec = record()
+    rec.marker = Marker("X")
+    assert filt.decide(rec) == FilterReply.NEUTRAL
+
+
+def test_burst_filter_allows_capacity_then_denies():
+    filt = BurstFilter(rate=0.0, maxBurst=3)
+    replies = [filt.decide(record()) for _ in range(5)]
+    assert replies[:3] == [FilterReply.NEUTRAL] * 3
+    assert replies[3:] == [FilterReply.DENY] * 2
+
+
+def test_burst_filter_refills_over_time():
+    from log4p.filter import BurstFilter as BF
+
+    filt = BF(rate=1000.0, maxBurst=1)
+    assert filt.decide(record()) == FilterReply.NEUTRAL
+    assert filt.decide(record()) == FilterReply.DENY
+    time = __import__("time")
+
+    time.sleep(0.01)
+    assert filt.decide(record()) == FilterReply.NEUTRAL
+
+
+def test_burst_filter_level_bypasses_limit():
+    filt = BurstFilter(rate=0.0, maxBurst=1, level="ERROR")
+    assert filt.decide(record(Level.ERROR)) == FilterReply.NEUTRAL
+    assert filt.decide(record(Level.INFO)) == FilterReply.NEUTRAL
+    assert filt.decide(record(Level.INFO)) == FilterReply.DENY

@@ -8,6 +8,8 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `NoMarkerFilter` (records without a marker) and `BurstFilter` (token-bucket
+  rate limiting with a level bypass).
 - `JSONLayout` options: `compact`, `includeStacktrace`, `includeLocation`,
   `eventEol`, and static `properties`.
 - `filters` on `root` and named `loggers` in dict/YAML config.

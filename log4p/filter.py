@@ -9,6 +9,8 @@ Filters that test a condition accept ``onMatch`` / ``onMismatch`` (each one of
 from __future__ import annotations
 
 import re
+import threading
+import time
 from enum import IntEnum
 from typing import Union
 
@@ -257,6 +259,57 @@ class DynamicThresholdFilter(Filter):
         value = str(record.context.get(self.key, ""))
         threshold = self.levels.get(value, self.default_threshold)
         return self._reply(int(record.level) >= int(threshold))
+
+
+class NoMarkerFilter(Filter):
+    """Match records that carry no marker."""
+
+    def __init__(self, onMatch="neutral", onMismatch="deny") -> None:
+        super().__init__(onMatch, onMismatch)
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        return self._reply(record.marker is None)
+
+
+class BurstFilter(Filter):
+    """Rate-limit records with a token bucket (log4j's ``BurstFilter``).
+
+    *rate* is the steady number of events per second allowed and *maxBurst* the
+    bucket capacity. Records at or above *level* bypass the limit.
+    """
+
+    def __init__(
+        self,
+        rate: float = 10.0,
+        maxBurst: int = 100,
+        level: Union[str, int, Level, None] = None,
+        onMatch="neutral",
+        onMismatch="deny",
+    ) -> None:
+        super().__init__(onMatch, onMismatch)
+        self.rate = float(rate)
+        self.maxBurst = int(maxBurst)
+        self.level = getLevel(level) if level is not None else None
+        self._lock = threading.Lock()
+        self._tokens = float(maxBurst)
+        self._last = time.monotonic()
+
+    def _allow(self) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            self._tokens = min(
+                self.maxBurst, self._tokens + (now - self._last) * self.rate
+            )
+            self._last = now
+            if self._tokens >= 1.0:
+                self._tokens -= 1.0
+                return True
+            return False
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        if self.level is not None and int(record.level) >= int(self.level):
+            return self._reply(True)
+        return self._reply(self._allow())
 
 
 class _CompositeFilter(Filter):
