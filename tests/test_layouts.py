@@ -287,4 +287,39 @@ def test_pattern_map_converter():
     assert json.loads(PatternLayout("%K").format(record)) == {"req": "r-1"}
 
 
+def test_pattern_location_converter():
+    record = make_record()
+    assert PatternLayout("%l").format(record) == "module.do_work(module.py:42)"
+
+
+def test_pattern_nanos_converter():
+    record = make_record()
+    assert PatternLayout("%N").format(record).isdigit()
+
+
+def test_pattern_env_converter(monkeypatch):
+    monkeypatch.setenv("LOG4P_TEST_VAR", "abc")
+    record = make_record()
+    assert PatternLayout("%env{LOG4P_TEST_VAR}").format(record) == "abc"
+    assert PatternLayout("%env{LOG4P_MISSING}").format(record) == ""
+    assert PatternLayout("%env{LOG4P_MISSING:-fallback}").format(record) == "fallback"
+
+
+def test_pattern_marker_simple_name():
+    from log4p import getMarker
+
+    record = make_record()
+    record.marker = getMarker("SQL")
+    assert PatternLayout("%markerSimpleName").format(record) == "SQL"
+    assert PatternLayout("%marker").format(record) == "SQL"
+
+
+def test_pattern_converter_aliases():
+    record = make_record()
+    assert PatternLayout("%threadName").format(record) == record.threadName
+    assert PatternLayout("%threadId").format(record) == str(record.thread)
+    assert PatternLayout("%processId").format(record) == str(record.process)
+    assert PatternLayout("%hostName").format(record) == PatternLayout("%h").format(record)
+
+
 

@@ -87,12 +87,15 @@ The full log4j conversion vocabulary is supported:
 | `%X{key}` / `%mdc{key}` | MDC value (or whole map with no key); `%X{key:-def}` for a default | `r-1` |
 | `%K{key}` | Map/context value (or whole map); `%K{key:-def}` for a default | `r-1` |
 | `%x` / `%ndc` | NDC stack | `outer inner` |
-| `%marker` | Marker attached to the record | `SQL` |
+| `%marker` / `%markerSimpleName` | Marker attached to the record | `SQL` |
 | `%stack` | Stack trace from `stack_info=True` | |
 | `%throwable` / `%ex` / `%exception` | Exception traceback | |
-| `%pid` | Process id | `8123` |
-| `%T` / `%tid` | Thread id | `140234` |
-| `%h` / `%host` | Hostname | |
+| `%l` / `%location` | `module.function(file:line)` | `db.connect(db.py:42)` |
+| `%pid` / `%processId` | Process id | `8123` |
+| `%T` / `%tid` / `%threadId` | Thread id | `140234` |
+| `%N` / `%nanos` | Nanoseconds since start | `42000000` |
+| `%env{NAME}` | Environment variable; `%env{NAME:-def}` for a default | |
+| `%h` / `%host` / `%hostName` | Hostname | |
 | `%n` | Newline | |
 | `%%` | Literal `%` | |
 

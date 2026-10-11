@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- Pattern converters `%l` / `%location`, `%N` / `%nanos`, `%env{NAME}` (with
+  `:-default`), and `%markerSimpleName`; aliases `%processId`, `%threadId`,
+  `%hostName`.
 - RFC 5424 framing for `SyslogAppender` (`rfc5424=True` with `appName` /
   `procId` / `msgId`).
 - `PropertiesRewritePolicy` (`${key}` substitution in the message).

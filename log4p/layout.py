@@ -7,6 +7,7 @@ syntax), and :class:`JSONLayout`.
 from __future__ import annotations
 
 import json
+import os
 import re
 import socket
 import time
@@ -345,6 +346,11 @@ class PatternLayout(Layout):
         %K{key} / %K{key:-default} map/context value (or whole map)
         %x / %ndc                 NDC stack joined by spaces
         %h / %host                hostname
+        %pid                      process id
+        %N / %nanos               nanoseconds since start
+        %l / %location            module.function(file:line)
+        %marker / %markerSimpleName  marker name
+        %env{NAME}                environment variable (%env{NAME:-default})
         %n                        platform newline
         %%                        literal percent
 
@@ -407,20 +413,29 @@ _LONG_NAMES = _SELECTOR_NAMES + [
     "msg",
     "logger",
     "level",
+    "threadName",
+    "threadId",
     "thread",
     "relative",
     "date",
     "file",
     "line",
+    "location",
     "method",
     "class",
     "mdc",
     "ndc",
+    "markerSimpleName",
     "marker",
     "stack",
+    "hostName",
     "host",
+    "processId",
+    "process",
     "pid",
     "tid",
+    "nanos",
+    "env",
     "ex",
 ]
 
@@ -678,9 +693,9 @@ def _make_converter(
         return wrap(lambda r: r.getMessage())
     if name in ("p", "level"):
         return wrap(lambda r: r.level.name)
-    if name in ("t", "thread"):
+    if name in ("t", "thread", "threadName"):
         return wrap(lambda r: r.threadName)
-    if name in ("T", "tid"):
+    if name in ("T", "tid", "threadId"):
         return wrap(lambda r: str(r.thread))
     if name in ("r", "relative"):
         return wrap(lambda r: str(int(r.relativeCreated)))
@@ -694,12 +709,27 @@ def _make_converter(
         return wrap(lambda r: r.module)
     if name in ("x", "ndc"):
         return wrap(lambda r: r.ndc)
-    if name in ("h", "host"):
+    if name in ("h", "host", "hostName"):
         return wrap(lambda r: _HOSTNAME)
-    if name in ("pid",):
+    if name in ("pid", "processId", "process"):
         return wrap(lambda r: str(r.process))
     if name in ("n",):
         return wrap(lambda r: "\n")
+    if name in ("l", "location"):
+        return wrap(
+            lambda r: f"{r.module}.{r.funcName}({r.filename}:{r.lineno})"
+        )
+    if name in ("N", "nanos"):
+        return wrap(lambda r: str(int(r.relativeCreated * 1_000_000)))
+    if name == "markerSimpleName":
+        return wrap(lambda r: str(r.marker) if r.marker is not None else "")
+    if name == "env":
+        if option:
+            if ":-" in option:
+                key, _, default = option.partition(":-")
+                return wrap(lambda r: os.environ.get(key, default))
+            return wrap(lambda r: os.environ.get(option, ""))
+        return wrap(lambda r: "")
     if name in ("marker",):
         return wrap(lambda r: str(r.marker) if r.marker is not None else "")
     if name in ("stack",):
