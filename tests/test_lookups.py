@@ -131,3 +131,27 @@ def test_lower_upper_with_no_argument():
     assert render("${lower:}", record()) == ""
     assert render("${upper:}", record()) == ""
 
+
+def test_sys_lookup_default():
+    assert render("${sys:no_such_attr:-fallback}", record()) == "fallback"
+
+
+def test_map_and_sd_lookups():
+    from log4p import MapMessage, StructuredDataMessage
+
+    mapped = LogRecord(
+        name="app", level=Level.INFO, message=MapMessage({"svc": "checkout"})
+    )
+    assert render("${map:svc}", mapped) == "checkout"
+    assert render("${map:missing:-none}", mapped) == "none"
+
+    structured = LogRecord(
+        name="app",
+        level=Level.INFO,
+        message=StructuredDataMessage({"user": "alice"}, type="audit"),
+    )
+    assert render("${sd:user}", structured) == "alice"
+    assert render("${sd:missing}", structured) == ""
+    assert render("${sd:user}", record()) == ""
+
+

@@ -635,8 +635,10 @@ def _make_lookup(content: str) -> Callable[[LogRecord], str]:
     """Build a per-event ``${kind:name}`` lookup token.
 
     Supported kinds: ``ctx`` (MDC/context), ``env`` (environment), ``sys``
-    (interpreter attribute), ``marker``, ``date`` (current time), and ``lower``
-    / ``upper`` (case-shifted, with nested lookup support). Unknown kinds are
+    (interpreter attribute), ``marker``, ``date`` (current time), ``sd`` /
+    ``map`` (structured-data or map message field), and ``lower`` / ``upper``
+    (case-shifted, with nested lookup support). ``ctx``, ``env``, ``sys``, and
+    the message lookups accept an optional ``:-default``. Unknown kinds are
     left as literal text so patterns using other lookup syntax pass through
     unchanged.
     """
@@ -665,12 +667,27 @@ def _make_lookup(content: str) -> Callable[[LogRecord], str]:
         return env
 
     if kind == "sys":
+        name, default = _split_default(rest)
 
         def sys_attr(_record: LogRecord) -> str:
-            value = getattr(sys, rest, None)
-            return "" if value is None else str(value)
+            value = getattr(sys, name, None)
+            if value is None:
+                return default if default is not None else ""
+            return str(value)
 
         return sys_attr
+
+    if kind in ("sd", "map"):
+        name, default = _split_default(rest)
+
+        def map_value(record: LogRecord) -> str:
+            data = getattr(record.message, "getData", None)
+            value = data().get(name) if callable(data) else None
+            if value is None:
+                return default if default is not None else ""
+            return str(value)
+
+        return map_value
 
     if not sep and kind == "marker":
 

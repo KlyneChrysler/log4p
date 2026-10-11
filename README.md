@@ -107,9 +107,10 @@ segments to their first letter (`org.apache.commons.Foo` -> `o.a.c.Foo`).
 
 Per-event lookups can be embedded in the pattern and are resolved for every
 record: `${ctx:key}` (with `${ctx:key:-default}`), `${env:NAME}`,
-`${sys:attr}`, `${marker}`, `${date:format}` (current time), and the
-case-shifting `${lower:...}` / `${upper:...}` (which accept nested lookups).
-Escape a literal `${...}` with `$${...}`.
+`${sys:attr}`, `${marker}`, `${date:format}` (current time), `${sd:key}` /
+`${map:key}` (structured-data or map message field), and the case-shifting
+`${lower:...}` / `${upper:...}` (which accept nested lookups). Lookups with a
+value accept a `:-default` fallback. Escape a literal `${...}` with `$${...}`.
 
 ```python
 PatternLayout("[${ctx:requestId}] ${marker} %-5p %c - %m%n")
