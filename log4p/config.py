@@ -77,6 +77,7 @@ from .filter import (
     RegexFilter,
     StructuredDataFilter,
     ThresholdFilter,
+    TimeFilter,
 )
 from .layout import (
     HTMLLayout,
@@ -143,6 +144,7 @@ _REGISTRY = {
         DynamicThresholdFilter,
         NoMarkerFilter,
         BurstFilter,
+        TimeFilter,
         ErrorHandler,
         FallbackErrorHandler,
     )

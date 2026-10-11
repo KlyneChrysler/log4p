@@ -50,6 +50,7 @@ from .filter import (
     RegexFilter,
     StructuredDataFilter,
     ThresholdFilter,
+    TimeFilter,
 )
 from .layout import (
     HTMLLayout,
@@ -105,6 +106,7 @@ __all__ = [
     "LevelRangeFilter",
     "RegexFilter",
     "StructuredDataFilter",
+    "TimeFilter",
     "MarkerFilter",
     "AndFilter",
     "OrFilter",

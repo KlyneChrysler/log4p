@@ -8,6 +8,7 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `TimeFilter` matches records by time-of-day (with midnight-wrapping windows).
 - `StructuredDataFilter` matches `StructuredDataMessage` events by
   structured-data type and key/value pairs (`and`/`or`).
 - `MemoryAppender` captures rendered events and records in memory (with an

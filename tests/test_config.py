@@ -959,6 +959,28 @@ def test_dictconfig_burst_filter():
     assert built.maxBurst == 10
 
 
+def test_dictconfig_time_filter():
+    from log4p import TimeFilter
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["console"]},
+            "appenders": {
+                "console": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                    "filters": [{"class": "TimeFilter", "start": "08:00", "end": "17:00"}],
+                }
+            },
+        }
+    )
+    built = getRootLogger().getAppenders()[0].getFilters()[0]
+    assert isinstance(built, TimeFilter)
+    assert built.start == "08:00"
+    assert built.end == "17:00"
+
+
 def test_dictconfig_structured_data_filter():
     from log4p import StructuredDataFilter, StructuredDataMessage
 

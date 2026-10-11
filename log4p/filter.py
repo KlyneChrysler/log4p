@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import threading
 import time
+from datetime import datetime
 from enum import IntEnum
 from typing import Union
 
@@ -353,6 +354,46 @@ class BurstFilter(Filter):
         if self.level is not None and int(record.level) >= int(self.level):
             return self._reply(True)
         return self._reply(self._allow())
+
+
+class TimeFilter(Filter):
+    """Match records whose time-of-day falls in ``[start, end]`` (log4j's
+    ``TimeFilter``).
+
+    *start* and *end* are ``"HH:MM"`` or ``"HH:MM:SS"``. When *start* is later
+    than *end* the window wraps across midnight (e.g. ``22:00``-``06:00``).
+    """
+
+    def __init__(self, start: str, end: str, onMatch="neutral", onMismatch="deny"):
+        super().__init__(onMatch, onMismatch)
+        self.start = start
+        self.end = end
+        self._start = _parse_time_of_day(start)
+        self._end = _parse_time_of_day(end)
+
+    def decide(self, record: LogRecord) -> FilterReply:
+        moment = datetime.fromtimestamp(record.created)
+        current = moment.hour * 3600 + moment.minute * 60 + moment.second
+        if self._start <= self._end:
+            matched = self._start <= current <= self._end
+        else:
+            matched = current >= self._start or current <= self._end
+        return self._reply(matched)
+
+
+def _parse_time_of_day(value: str) -> int:
+    parts = str(value).split(":")
+    if len(parts) not in (2, 3):
+        raise ValueError(f"invalid time-of-day: {value!r}")
+    try:
+        numbers = [int(part) for part in parts]
+    except ValueError as exc:  # pragma: no cover - covered via message below
+        raise ValueError(f"invalid time-of-day: {value!r}") from exc
+    hour, minute = numbers[0], numbers[1]
+    second = numbers[2] if len(numbers) == 3 else 0
+    if not (0 <= hour < 24 and 0 <= minute < 60 and 0 <= second < 60):
+        raise ValueError(f"invalid time-of-day: {value!r}")
+    return hour * 3600 + minute * 60 + second
 
 
 class _CompositeFilter(Filter):

@@ -323,3 +323,51 @@ def test_structured_data_filter_invalid_operator():
     with pytest.raises(ValueError):
         StructuredDataFilter(properties={}, operator="xor")
 
+
+def _at(hour, minute=0, second=0):
+    from datetime import datetime, time
+
+    rec = record()
+    rec.created = datetime.combine(datetime.today(), time(hour, minute, second)).timestamp()
+    return rec
+
+
+def test_time_filter_within_range():
+    from log4p import TimeFilter
+
+    filt = TimeFilter("08:00", "17:00")
+    assert filt.decide(_at(9)) == FilterReply.NEUTRAL
+    assert filt.decide(_at(8)) == FilterReply.NEUTRAL
+    assert filt.decide(_at(17)) == FilterReply.NEUTRAL
+    assert filt.decide(_at(20)) == FilterReply.DENY
+    assert filt.decide(_at(7, 59)) == FilterReply.DENY
+
+
+def test_time_filter_wraps_midnight():
+    from log4p import TimeFilter
+
+    filt = TimeFilter("22:00", "06:00")
+    assert filt.decide(_at(23)) == FilterReply.NEUTRAL
+    assert filt.decide(_at(3)) == FilterReply.NEUTRAL
+    assert filt.decide(_at(12)) == FilterReply.DENY
+
+
+def test_time_filter_with_seconds_and_replies():
+    from log4p import TimeFilter
+
+    filt = TimeFilter("08:00:00", "08:00:30", onMatch="accept", onMismatch="neutral")
+    assert filt.decide(_at(8, 0, 15)) == FilterReply.ACCEPT
+    assert filt.decide(_at(8, 1, 0)) == FilterReply.NEUTRAL
+
+
+def test_time_filter_invalid_value():
+    import pytest
+
+    from log4p import TimeFilter
+
+    with pytest.raises(ValueError):
+        TimeFilter("8am", "17:00")
+    with pytest.raises(ValueError):
+        TimeFilter("25:00", "17:00")
+
+
