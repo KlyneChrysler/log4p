@@ -267,10 +267,24 @@ def test_burst_filter_refills_over_time():
 
 
 def test_burst_filter_level_bypasses_limit():
-    filt = BurstFilter(rate=0.0, maxBurst=1, level="ERROR")
-    assert filt.decide(record(Level.ERROR)) == FilterReply.NEUTRAL
-    assert filt.decide(record(Level.INFO)) == FilterReply.NEUTRAL
-    assert filt.decide(record(Level.INFO)) == FilterReply.DENY
+    # log4j2 semantics: events at or BELOW level are rate-limited
+    # events ABOVE level bypass the limit
+    filt = BurstFilter(rate=0.0, maxBurst=1, level="WARN")
+    assert filt.decide(record(Level.ERROR)) == FilterReply.NEUTRAL  # ERROR > WARN, bypass
+    assert filt.decide(record(Level.FATAL)) == FilterReply.NEUTRAL  # FATAL > WARN, bypass
+    assert filt.decide(record(Level.WARN)) == FilterReply.NEUTRAL   # WARN <= WARN, first allowed
+    assert filt.decide(record(Level.WARN)) == FilterReply.DENY      # WARN <= WARN, second denied
+    assert filt.decide(record(Level.INFO)) == FilterReply.DENY      # INFO <= WARN, denied
+
+
+def test_burst_filter_denied_counter():
+    filt = BurstFilter(rate=0.0, maxBurst=2)
+    assert filt.denied == 0
+    filt.decide(record())  # allowed
+    filt.decide(record())  # allowed
+    filt.decide(record())  # denied
+    filt.decide(record())  # denied
+    assert filt.denied == 2
 
 
 def _sd_record(data=None, type=""):

@@ -13,7 +13,7 @@ import shutil
 import sys
 import threading
 import time
-from typing import List, Optional, TextIO, Tuple, Union
+from typing import Dict, List, Optional, TextIO, Tuple, Union
 
 from .cron import CronExpression
 from .error import ErrorHandler
@@ -440,10 +440,16 @@ class AsyncAppender(Appender):
         self._queue: "queue.Queue" = queue.Queue(maxsize=queue_size)
         self._worker: Optional[threading.Thread] = None
         self._dropped = 0
+        self._dropped_lock = threading.Lock()
 
     @property
     def dropped(self) -> int:
-        return self._dropped
+        with self._dropped_lock:
+            return self._dropped
+
+    def _increment_dropped(self) -> None:
+        with self._dropped_lock:
+            self._dropped += 1
 
     def getLayout(self) -> Layout:
         return self.appender.getLayout()
@@ -481,7 +487,7 @@ class AsyncAppender(Appender):
             and int(record.level) < int(WARN)
             and self._queue.qsize() >= self.queue_size - self.discardingThreshold
         ):
-            self._dropped += 1
+            self._increment_dropped()
             return
         if self.overflow == "block":
             self._queue.put(record)
@@ -489,7 +495,7 @@ class AsyncAppender(Appender):
             try:
                 self._queue.put_nowait(record)
             except queue.Full:
-                self._dropped += 1
+                self._increment_dropped()
 
     def _run_worker(self) -> None:
         while True:
@@ -558,14 +564,16 @@ class RoutingAppender(Appender):
 class FailoverAppender(Appender):
     """Try a *primary* appender and fall back through *failovers* on error.
 
-    The first appender that successfully writes an event becomes the active one
-    and is tried first on the next event (log4j's ``FailoverAppender``).
+    The primary appender is retried after *retryInterval* seconds (log4j2's
+    ``FailoverAppender`` behaviour). Failover events are counted and optionally
+    logged via the error handler.
     """
 
     def __init__(
         self,
         primary: Appender,
         failovers: Optional[List[Appender]] = None,
+        retryInterval: float = 60.0,
         layout: Optional[Layout] = None,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
@@ -573,7 +581,11 @@ class FailoverAppender(Appender):
         super().__init__(name=name, layout=layout, threshold=threshold)
         self.primary = primary
         self.failovers: List[Appender] = list(failovers) if failovers else []
+        self.retryInterval = float(retryInterval)
         self._active = 0
+        self._lock = threading.RLock()
+        self._failureCounts: Dict[int, int] = {}
+        self._lastRetry = 0.0
 
     def _appenders(self) -> List[Appender]:
         return [self.primary] + self.failovers
@@ -597,9 +609,35 @@ class FailoverAppender(Appender):
         for appender in self._appenders():
             appender.flush()
 
+    def _recordFailure(self, index: int) -> None:
+        with self._lock:
+            self._failureCounts[index] = self._failureCounts.get(index, 0) + 1
+
+    def _getFailureCount(self, index: int) -> int:
+        with self._lock:
+            return self._failureCounts.get(index, 0)
+
     def append(self, record: LogRecord) -> None:
         appenders = self._appenders()
         count = len(appenders)
+        now = time.monotonic()
+
+        # Try to retry the primary if enough time has passed
+        with self._lock:
+            if self._active != 0 and now - self._lastRetry >= self.retryInterval:
+                self._lastRetry = now
+                if self.primary.isStarted():
+                    # Try to write a test record to see if primary recovered
+                    try:
+                        self.primary.append(record)
+                        # Success - switch back to primary
+                        self._active = 0
+                        return
+                    except Exception:
+                        # Primary still failing, continue with failover
+                        pass
+
+        # Try appenders starting from active
         for offset in range(count):
             index = (self._active + offset) % count
             appender = appenders[index]
@@ -607,11 +645,33 @@ class FailoverAppender(Appender):
                 if not appender.isStarted():
                     appender.start()
                 appender.append(record)
-            except Exception:  # pragma: no cover - depends on the peer
+            except Exception:
+                self._recordFailure(index)
                 continue
-            self._active = index
+            # Success
+            with self._lock:
+                self._active = index
             return
+
+        # All failed
+        with self._lock:
+            self._failureCounts[-1] = self._failureCounts.get(-1, 0) + 1
         raise RuntimeError("all failover appenders failed")
+
+    def getFailureCount(self, appender: Union[int, str] = "primary") -> int:
+        """Get failure count for an appender. *appender* can be 'primary', an index, or 'all'."""
+        with self._lock:
+            if appender == "primary":
+                return self._failureCounts.get(0, 0)
+            elif appender == "all":
+                return dict(self._failureCounts)
+            elif isinstance(appender, int):
+                return self._failureCounts.get(appender, 0)
+            return 0
+
+    def resetFailureCounts(self) -> None:
+        with self._lock:
+            self._failureCounts.clear()
 
 
 class TimedRotatingFileAppender(FileAppender):

@@ -353,10 +353,16 @@ class NoMarkerFilter(Filter):
 
 
 class BurstFilter(Filter):
-    """Rate-limit records with a token bucket (log4j's ``BurstFilter``).
+    """Rate-limit records with a token bucket (log4j2's ``BurstFilter``).
 
     *rate* is the steady number of events per second allowed and *maxBurst* the
-    bucket capacity. Records at or above *level* bypass the limit.
+    bucket capacity. Events at or below *level* are rate-limited; events above
+    *level* bypass the limit entirely. If *level* is ``None`` (default), all
+    events are rate-limited.
+
+    A ``denied`` counter tracks dropped events. If *emitSummary* is True, a
+    summary log record is emitted via the appender's layout every
+    *summaryInterval* seconds when events have been denied.
     """
 
     def __init__(
@@ -364,6 +370,8 @@ class BurstFilter(Filter):
         rate: float = 10.0,
         maxBurst: int = 100,
         level: Union[str, int, Level, None] = None,
+        emitSummary: bool = False,
+        summaryInterval: float = 60.0,
         onMatch="neutral",
         onMismatch="deny",
     ) -> None:
@@ -371,9 +379,19 @@ class BurstFilter(Filter):
         self.rate = float(rate)
         self.maxBurst = int(maxBurst)
         self.level = getLevel(level) if level is not None else None
+        self.emitSummary = emitSummary
+        self.summaryInterval = summaryInterval
         self._lock = threading.Lock()
         self._tokens = float(maxBurst)
         self._last = time.monotonic()
+        self._denied = 0
+        self._lastSummary = time.monotonic()
+
+    @property
+    def denied(self) -> int:
+        """Number of events dropped by this filter."""
+        with self._lock:
+            return self._denied
 
     def _allow(self) -> bool:
         now = time.monotonic()
@@ -387,10 +405,43 @@ class BurstFilter(Filter):
                 return True
             return False
 
+    def _maybe_emit_summary(self, appender) -> None:
+        if not self.emitSummary:
+            return
+        now = time.monotonic()
+        with self._lock:
+            if self._denied == 0:
+                return
+            if now - self._lastSummary < self.summaryInterval:
+                return
+            self._lastSummary = now
+            denied = self._denied
+            self._denied = 0
+        # Emit a summary record through the appender
+        from .levels import Level
+        from .record import LogRecord
+        summary = LogRecord(
+            name="log4p2.BurstFilter",
+            level=Level.WARN,
+            message=f"BurstFilter suppressed {denied} events in the last {self.summaryInterval:.0f}s (rate={self.rate}/s, maxBurst={self.maxBurst})",
+        )
+        try:
+            appender.doAppend(summary)
+        except Exception:
+            pass
+
     def decide(self, record: LogRecord) -> FilterReply:
-        if self.level is not None and int(record.level) >= int(self.level):
+        # Check if this event should bypass rate limiting
+        # log4j2 semantics: events at or BELOW the level are rate-limited
+        # events ABOVE the level bypass the limit
+        if self.level is not None and int(record.level) > int(self.level):
             return self._reply(True)
-        return self._reply(self._allow())
+
+        allowed = self._allow()
+        if not allowed:
+            with self._lock:
+                self._denied += 1
+        return self._reply(allowed)
 
 
 class TimeFilter(Filter):

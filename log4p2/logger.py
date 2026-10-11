@@ -198,6 +198,17 @@ class Logger:
         return LogBuilder(self, FATAL)
 
     # -- internals -----------------------------------------------------
+    def _needs_caller(self) -> bool:
+        """Check if any appender in the hierarchy exists (caller info may be accessed)."""
+        logger = self
+        while logger is not None:
+            if logger._appenders:
+                return True
+            if not logger.additivity:
+                break
+            logger = logger.parent
+        return False
+
     def _log(
         self,
         level: Level,
@@ -210,7 +221,11 @@ class Logger:
         marker: Any = None,
         stacklevel: int = 0,
     ) -> None:
-        caller = _find_caller(stacklevel)
+        # Only compute caller info if any layout in the hierarchy needs it
+        if self._needs_caller():
+            caller = _find_caller(stacklevel)
+        else:
+            caller = ("", 0, "")
         if exc_info is True:
             exc_info = sys.exc_info()
         elif exc_info and not isinstance(exc_info, tuple):

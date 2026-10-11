@@ -589,6 +589,12 @@ class PatternLayout(Layout):
         self._header = header
         self._footer = footer
         self._tokens: List[Callable[[LogRecord], str]] = _compile(pattern)
+        # Pre-compute if pattern needs caller info to avoid unnecessary frame walking
+        self._pattern_needs_caller = _pattern_needs_caller(pattern)
+
+    def _needs_caller(self) -> bool:
+        """Return True if this pattern layout needs caller info."""
+        return self._pattern_needs_caller
 
     def format(self, record: LogRecord) -> str:
         if self.selector is not None:
@@ -618,6 +624,27 @@ _SELECTOR_NAMES = [
     "enc",
     "style",
 ]
+
+def _pattern_needs_caller(pattern: str) -> bool:
+    """Check if a pattern string contains caller-related format specifiers.
+
+    Returns True if the pattern uses %F, %L, %M, %C, %l, %file, %line,
+    %method, %class, or %location (or their aliases).
+    """
+    # Match % followed by optional format modifiers and then a caller-related specifier
+    # Caller specifiers: F, L, M, C, l, file, line, method, class, location
+    caller_specifiers = {"F", "L", "M", "C", "l", "file", "line", "method", "class", "location"}
+    # Regex to find %...{...} or %... patterns
+    # We need to handle %c, %d, %m, %p, %t, %r, %F, %L, %M, %C, %X, %K, %x, %h, %n, %%, etc.
+    import re
+    # Find all % patterns (excluding %% which is literal %)
+    # Pattern: % followed by optional - and digits, optional .digits, then specifier
+    matches = re.findall(r'%(?:-\d+|\d+)?(?:\.\d+)?([A-Za-z]+)', pattern)
+    for spec in matches:
+        if spec in caller_specifiers:
+            return True
+    return False
+
 
 # Shorthand colour converters, e.g. ``%red{%m}``.
 _COLOR_NAMES = [

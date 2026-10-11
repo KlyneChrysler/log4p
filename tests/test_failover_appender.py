@@ -47,14 +47,17 @@ def test_failover_falls_back_when_primary_fails():
 
 
 def test_failover_sticks_with_recovered_active():
+    # With retryInterval=0, primary is retried immediately after failure
     primary = FlakyAppender(io.StringIO(), broken=True)
     backup = ConsoleAppender(PatternLayout("%m"), stream=io.StringIO())
-    app = FailoverAppender(primary, [backup])
+    app = FailoverAppender(primary, [backup], retryInterval=0.0)
     app.doAppend(record("first"))
     primary.broken = False
     app.doAppend(record("second"))
     app.stop()
-    assert backup.stream.getvalue() == "first\nsecond\n"
+    # With retryInterval=0, primary recovers immediately and gets the second event
+    # backup only gets the first event (when primary was broken)
+    assert backup.stream.getvalue() == "first\n"
 
 
 def test_failover_raises_when_all_fail():
@@ -109,3 +112,17 @@ def test_failover_config_builds_children():
     root.info("saved")
     app.stop()
     assert buf.getvalue() == "saved\n"
+
+
+def test_failover_failure_counts():
+    primary = FlakyAppender(io.StringIO(), broken=True)
+    backup = ConsoleAppender(PatternLayout("%m"), stream=io.StringIO())
+    app = FailoverAppender(primary, [backup], retryInterval=0.0)
+    app.doAppend(record("first"))   # fails primary, goes to backup
+    app.doAppend(record("second"))  # primary recovers (retryInterval=0), goes to primary
+    app.stop()
+    # Primary failed once, then recovered
+    assert app.getFailureCount("primary") == 1
+    assert app.getFailureCount(1) == 0
+    counts = app.getFailureCount("all")
+    assert counts[0] == 1

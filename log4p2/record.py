@@ -48,6 +48,7 @@ class LogRecord:
         "marker",
         "sequence",
         "_formatted",
+        "exception_text",
     )
 
     def __init__(
@@ -93,6 +94,7 @@ class LogRecord:
         self.marker = marker
         self.sequence = next(_SEQUENCE)
         self._formatted: Optional[str] = None
+        self.exception_text: Optional[str] = None
 
     def getMessage(self) -> str:
         """Merge the message template with its arguments (``%`` style)."""
@@ -153,6 +155,16 @@ class LogRecord:
             f"<LogRecord {self.level.name} {self.name!r} "
             f"{self.getMessage()!r} at {self.filename}:{self.lineno}>"
         )
+
+    def copy(self) -> "LogRecord":
+        """Return a shallow copy of this record for safe mutation by policies."""
+        new = LogRecord.__new__(LogRecord)
+        for slot in self.__slots__:
+            object.__setattr__(new, slot, getattr(self, slot))
+        # context and ndc are mutable - copy them
+        new.context = dict(self.context)
+        new.ndc = self.ndc
+        return new
 
 
 _START_TIME = time.time()

@@ -3,6 +3,10 @@
 Mirrors log4j's ``RewriteAppender``: a :class:`RewritePolicy` inspects (and may
 alter) each :class:`~log4p2.record.LogRecord`, then the wrapped appender writes
 the result.
+
+Policies receive a shallow copy of the record, so mutations don't affect sibling
+appenders or async queues. The copy includes a pre-formatted ``exception_text``
+field with the rendered traceback (or ``None``).
 """
 
 from __future__ import annotations
@@ -16,7 +20,11 @@ from .record import LogRecord
 
 
 class RewritePolicy:
-    """Base class: return the (possibly modified) record to keep, or ``None``."""
+    """Base class: return the (possibly modified) record to keep, or ``None``.
+
+    The *record* argument is a copy; mutations are safe. The record has an extra
+    ``exception_text`` attribute containing the formatted traceback (or ``None``).
+    """
 
     def rewrite(self, record: LogRecord) -> Optional[LogRecord]:
         return record
@@ -70,7 +78,8 @@ class CallableRewritePolicy(RewritePolicy):
     analogue).
 
     *function* receives the record and returns either the (possibly modified)
-    record or ``None`` to drop the event.
+    record or ``None`` to drop the event. The record is a copy with an
+    ``exception_text`` attribute.
     """
 
     def __init__(self, function) -> None:
@@ -81,7 +90,12 @@ class CallableRewritePolicy(RewritePolicy):
 
 
 class RewriteAppender(Appender):
-    """Apply *policy* to each record, then delegate to *appender*."""
+    """Apply *policy* to each record, then delegate to *appender*.
+
+    A shallow copy of the record is passed to the policy so that mutations are
+    isolated from other appenders and async queues. The copy has an extra
+    ``exception_text`` attribute with the formatted traceback (or ``None``).
+    """
 
     def __init__(
         self,
@@ -113,6 +127,9 @@ class RewriteAppender(Appender):
 
     def append(self, record: LogRecord) -> None:
         if self.policy is not None:
+            # Create a copy with exception text for safe mutation
+            record = record.copy()
+            record.exception_text = record.getExceptionText()
             record = self.policy.rewrite(record)
             if record is None:
                 return

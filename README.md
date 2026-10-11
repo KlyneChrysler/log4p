@@ -66,4 +66,8 @@ Output formats for text, JSON, context and exceptions were checked by running th
 python3 -m pytest -q
 ```
 
+## Limitations
+
+- **AsyncAppender queue loss on hard kill**: When using `AsyncAppender`, events in the queue that haven't been processed by the background worker will be lost if the process is terminated abruptly (e.g., `SIGKILL`, `os._exit`, power loss). This is inherent to asynchronous logging designs. For critical audit trails, use synchronous appenders or call `appender.flush()` before graceful shutdown.
+
 MIT licensed.
