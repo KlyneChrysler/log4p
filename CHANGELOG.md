@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- MDC/NDC parity helpers: `MDC.putAll`/`setContext`/`containsKey`/`isEmpty`/
+  `getContext`/`getImmutableContext`, `NDC.remove`/`getStack`/`isEmpty`;
+  `Logger.isEnabled(level)` and `LoggerManager.exists(name)`.
 - Per-event lookups in `PatternLayout`: `${ctx:key}` (with defaults),
   `${env:NAME}`, `${sys:attr}`, and `${marker}`.
 - `RoutingAppender` routes each event to a child appender selected by a context

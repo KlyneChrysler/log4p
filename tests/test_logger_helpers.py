@@ -48,3 +48,24 @@ def test_logger_level_helpers_follow_inheritance():
     assert child.isDebugEnabled()
     assert child.isTraceEnabled() is False
     getLoggerManager().clear()
+
+
+def test_logger_is_enabled_alias():
+    getLoggerManager().clear()
+    logger = getLogger("svc")
+    logger.setLevel(Level.INFO)
+    assert logger.isEnabled("INFO")
+    assert logger.isEnabled(Level.ERROR)
+    assert not logger.isEnabled("DEBUG")
+    getLoggerManager().clear()
+
+
+def test_logger_manager_exists():
+    manager = getLoggerManager()
+    manager.clear()
+    assert not manager.exists("pkg.sub")
+    getLogger("pkg.sub")
+    assert manager.exists("pkg.sub")
+    assert manager.exists("pkg.sub.")
+    assert not manager.exists("pkg.other")
+    manager.clear()

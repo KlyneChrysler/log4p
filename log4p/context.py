@@ -42,6 +42,27 @@ class MDC:
         _mdc.set(new or None)
 
     @staticmethod
+    def putAll(mapping) -> None:
+        current = _mdc.get()
+        new = dict(current) if current else {}
+        new.update(mapping)
+        _mdc.set(new or None)
+
+    @staticmethod
+    def setContext(mapping) -> None:
+        new = dict(mapping) if mapping else None
+        _mdc.set(new or None)
+
+    @staticmethod
+    def containsKey(key: str) -> bool:
+        current = _mdc.get()
+        return bool(current) and key in current
+
+    @staticmethod
+    def isEmpty() -> bool:
+        return not _mdc.get()
+
+    @staticmethod
     def clear() -> None:
         _mdc.set(None)
 
@@ -49,6 +70,15 @@ class MDC:
     def getCopy() -> Dict[str, object]:
         current = _mdc.get()
         return dict(current) if current else {}
+
+    @staticmethod
+    def getContext() -> Dict[str, object]:
+        """Immutable snapshot of the context (log4j ``getImmutableContext``)."""
+        return MDC.getCopy()
+
+    @staticmethod
+    def getImmutableContext() -> Dict[str, object]:
+        return MDC.getCopy()
 
 
 class NDC:
@@ -72,6 +102,11 @@ class NDC:
         return value
 
     @staticmethod
+    def remove() -> Optional[str]:
+        """Alias for :meth:`pop` (log4j ``NDC.remove``)."""
+        return NDC.pop()
+
+    @staticmethod
     def peek() -> Optional[str]:
         current = _ndc.get()
         return current[-1] if current else None
@@ -80,6 +115,15 @@ class NDC:
     def getDepth() -> int:
         current = _ndc.get()
         return len(current) if current else 0
+
+    @staticmethod
+    def isEmpty() -> bool:
+        return not _ndc.get()
+
+    @staticmethod
+    def getStack() -> List[str]:
+        current = _ndc.get()
+        return list(current) if current else []
 
     @staticmethod
     def clear() -> None:

@@ -72,6 +72,10 @@ class Logger:
     def isEnabledFor(self, level: Union[str, int, Level]) -> bool:
         return int(getLevel(level)) >= int(self.getEffectiveLevel())
 
+    def isEnabled(self, level: Union[str, int, Level]) -> bool:
+        """Alias for :meth:`isEnabledFor` (log4j naming)."""
+        return self.isEnabledFor(level)
+
     # -- appenders -----------------------------------------------------
     def addAppender(self, appender: Appender) -> None:
         with self._lock:
@@ -399,6 +403,16 @@ class LoggerManager:
 
     def getLoggerNames(self) -> List[str]:
         return sorted(self._loggers.keys())
+
+    def exists(self, name: Union[str, None]) -> bool:
+        """True if a logger called *name* has already been created."""
+        if name is None:
+            name = ""
+        if not isinstance(name, str):
+            name = str(name)
+        if name and name.endswith("."):
+            name = name[:-1]
+        return name in self._loggers
 
     def allLoggers(self) -> List[Logger]:
         return list(self._loggers.values())
