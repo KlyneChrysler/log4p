@@ -15,6 +15,7 @@ import threading
 import time
 from typing import List, Optional, TextIO, Tuple, Union
 
+from .cron import CronExpression
 from .error import ErrorHandler
 from .filter import Filter, FilterReply
 from .layout import Layout, PatternLayout
@@ -860,6 +861,56 @@ class NullAppender(Appender):
 
     def append(self, record: LogRecord) -> None:
         pass
+
+
+class CronRollingFileAppender(TimedRotatingFileAppender):
+    """Roll the file when a cron expression matches (log4j's
+    ``CronTriggeringPolicy``).
+
+    *cron* is a five- or six-field expression (see
+    :class:`~log4p.cron.CronExpression`). Rotated files are named
+    ``<file>.<suffix>`` where *suffix* is a ``strftime`` format applied to the
+    period start.
+    """
+
+    def __init__(
+        self,
+        filename: str,
+        cron: str,
+        suffix: str = "%Y-%m-%d_%H-%M-%S",
+        backupCount: int = 0,
+        utc: bool = False,
+        compress: bool = False,
+        layout: Optional[Layout] = None,
+        encoding: str = "utf-8",
+        immediateFlush: bool = True,
+        onStartup: bool = False,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            filename=filename,
+            when="d",
+            interval=1,
+            backupCount=backupCount,
+            utc=utc,
+            compress=compress,
+            layout=layout,
+            encoding=encoding,
+            immediateFlush=immediateFlush,
+            onStartup=onStartup,
+            threshold=threshold,
+            name=name,
+        )
+        self.cron = CronExpression(cron)
+        self.suffix_format = suffix
+
+    def _suffix_for(self, timestamp: float) -> str:
+        converter = time.gmtime if self.utc else time.localtime
+        return time.strftime(self.suffix_format, converter(timestamp))
+
+    def _compute_rollover(self, ts: float) -> float:
+        return self.cron.next_after(ts)
 
 
 class MemoryAppender(Appender):

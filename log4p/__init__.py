@@ -16,6 +16,7 @@ from .appender import (
     Appender,
     AsyncAppender,
     ConsoleAppender,
+    CronRollingFileAppender,
     FailoverAppender,
     FileAppender,
     MemoryAppender,
@@ -31,6 +32,7 @@ from .bridge import (
     capture_stdlib,
 )
 from .context import MDC, NDC
+from .cron import CronExpression
 from .error import ErrorHandler, FallbackErrorHandler
 from .filter import (
     AcceptAllFilter,
@@ -122,6 +124,7 @@ __all__ = [
     "ConsoleAppender",
     "FailoverAppender",
     "FileAppender",
+    "CronRollingFileAppender",
     "MemoryAppender",
     "NullAppender",
     "RotatingFileAppender",
@@ -145,6 +148,7 @@ __all__ = [
     "shutdown",
     "MDC",
     "NDC",
+    "CronExpression",
     "StdlibLoggingAppender",
     "StdlibToLog4pHandler",
     "capture_stdlib",

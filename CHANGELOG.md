@@ -8,6 +8,9 @@ All notable changes to log4p are documented here. This project follows
 
 ### Added
 
+- `CronRollingFileAppender` rolls on a cron schedule, backed by the exported
+  `CronExpression` parser (five- or six-field expressions with lists, ranges,
+  steps, and month/day names).
 - `TimeFilter` matches records by time-of-day (with midnight-wrapping windows).
 - `StructuredDataFilter` matches `StructuredDataMessage` events by
   structured-data type and key/value pairs (`and`/`or`).

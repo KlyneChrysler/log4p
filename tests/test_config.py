@@ -959,6 +959,32 @@ def test_dictconfig_burst_filter():
     assert built.maxBurst == 10
 
 
+def test_dictconfig_cron_rolling(tmp_path):
+    from log4p import CronRollingFileAppender
+
+    path = tmp_path / "app.log"
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["cron"]},
+            "appenders": {
+                "cron": {
+                    "class": "CronRollingFileAppender",
+                    "filename": str(path),
+                    "cron": "0 0 * * *",
+                    "suffix": "%Y%m%d",
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, CronRollingFileAppender)
+    assert app.suffix_format == "%Y%m%d"
+    getRootLogger().info("cron-tick")
+    getLoggerManager().shutdown()
+    assert path.read_text() == "cron-tick\n"
+
+
 def test_dictconfig_time_filter():
     from log4p import TimeFilter
 

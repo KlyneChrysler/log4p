@@ -196,6 +196,10 @@ NullAppender()                               # discard everything
 - `SizeAndTimeBasedAppender` rolls on whichever comes first: the size limit or
   the time period. Rotated files are `<file>.<timestamp>.<n>` so multiple rolls
   in one period stay distinct.
+- `CronRollingFileAppender("app.log", cron="0 0 * * *")` rolls when a five- or
+  six-field cron expression matches (log4j's `CronTriggeringPolicy`); customise
+  the rotated-file name with a `strftime` `suffix`. `CronExpression` is exported
+  for reuse.
 - Size arguments accept strings: `maxBytes="10MB"`, `"512KB"`, `"1G"`.
 - Pass `onStartup=True` to any rolling appender to rotate an existing non-empty
   file the first time it is opened (log4j's `OnStartupTriggeringPolicy`).

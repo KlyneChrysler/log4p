@@ -50,6 +50,7 @@ from .appender import (
     Appender,
     AsyncAppender,
     ConsoleAppender,
+    CronRollingFileAppender,
     FailoverAppender,
     FileAppender,
     MemoryAppender,
@@ -104,6 +105,7 @@ _REGISTRY = {
     for cls in (
         Appender,
         ConsoleAppender,
+        CronRollingFileAppender,
         FailoverAppender,
         FileAppender,
         MemoryAppender,
