@@ -182,6 +182,7 @@ class ConsoleAppender(Appender):
         layout: Optional[Layout] = None,
         target: str = "stdout",
         stream: Optional[TextIO] = None,
+        immediateFlush: bool = True,
         threshold: Optional[Union[str, int, Level]] = None,
         name: Optional[str] = None,
     ) -> None:
@@ -189,6 +190,7 @@ class ConsoleAppender(Appender):
         if target not in ("stdout", "stderr"):
             raise ValueError("target must be 'stdout' or 'stderr'")
         self.target = target
+        self.immediateFlush = immediateFlush
         self._stream = stream
 
     @property
@@ -212,15 +214,20 @@ class ConsoleAppender(Appender):
                 footer = self._layout.footer()
                 if footer:
                     self.stream.write(footer)
+                if self.immediateFlush or footer:
                     self.stream.flush()
             self._started = False
+
+    def flush(self) -> None:
+        self.stream.flush()
 
     def append(self, record: LogRecord) -> None:
         text = self._render(record)
         if not text.endswith("\n"):
             text += "\n"
         self.stream.write(text)
-        self.stream.flush()
+        if self.immediateFlush:
+            self.stream.flush()
 
 
 class FileAppender(Appender):
@@ -852,4 +859,43 @@ class NullAppender(Appender):
     """Discard every event (log4j's ``NullAppender``) - a ``/dev/null`` sink."""
 
     def append(self, record: LogRecord) -> None:
+        pass
+
+
+class MemoryAppender(Appender):
+    """Capture rendered events in memory (handy for tests and assertions).
+
+    *maxSize* keeps only the most recent N events/records when positive.
+    """
+
+    def __init__(
+        self,
+        layout: Optional[Layout] = None,
+        maxSize: int = 0,
+        threshold: Optional[Union[str, int, Level]] = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(name=name, layout=layout, threshold=threshold)
+        self.maxSize = maxSize
+        self.events: List[str] = []
+        self.records: List[LogRecord] = []
+
+    def append(self, record: LogRecord) -> None:
+        self.events.append(self._render(record))
+        self.records.append(record)
+        if self.maxSize and len(self.events) > self.maxSize:
+            del self.events[: -self.maxSize]
+            del self.records[: -self.maxSize]
+
+    def getEvents(self) -> List[str]:
+        return list(self.events)
+
+    def getRecords(self) -> List[LogRecord]:
+        return list(self.records)
+
+    def clear(self) -> None:
+        self.events.clear()
+        self.records.clear()
+
+    def flush(self) -> None:
         pass

@@ -221,6 +221,9 @@ NullAppender()                               # discard everything
   triggering stack trace) when one reaches `triggerLevel` (default `ERROR`).
   Supports `starttls`, `ssl`, and `username`/`password`.
 - `NullAppender` discards every event (a `/dev/null` sink).
+- `MemoryAppender` captures rendered events and records in memory
+  (`getEvents()` / `getRecords()`, optional `maxSize`), handy for tests.
+- `ConsoleAppender` / `FileAppender` accept `immediateFlush` (default `True`).
 
 Loggers expose the usual level checks: `logger.isDebugEnabled()`,
 `isInfoEnabled()`, `isWarnEnabled()`, `isErrorEnabled()`, `isFatalEnabled()`,

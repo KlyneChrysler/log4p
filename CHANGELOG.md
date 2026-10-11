@@ -6,6 +6,12 @@ All notable changes to log4p are documented here. This project follows
 
 ## [Unreleased]
 
+### Added
+
+- `MemoryAppender` captures rendered events and records in memory (with an
+  optional `maxSize` ring limit) for tests and assertions.
+- `ConsoleAppender` gains an `immediateFlush` option (default `True`).
+
 ## [0.2.0] - 2026-10-11
 
 ### Added

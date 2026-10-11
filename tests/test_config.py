@@ -730,6 +730,49 @@ def test_dictconfig_null_appender():
     assert isinstance(app, NullAppender)
 
 
+def test_dictconfig_memory_appender():
+    from log4p import MemoryAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["mem"]},
+            "appenders": {
+                "mem": {
+                    "class": "MemoryAppender",
+                    "maxSize": 5,
+                    "layout": {"class": "PatternLayout", "pattern": "%p %m"},
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, MemoryAppender)
+    assert app.maxSize == 5
+    getRootLogger().info("hi")
+    assert app.getEvents() == ["INFO hi"]
+
+
+def test_dictconfig_console_immediate_flush():
+    from log4p import ConsoleAppender
+
+    log4p_config.dictConfig(
+        {
+            "root": {"level": "INFO", "appenders": ["c"]},
+            "appenders": {
+                "c": {
+                    "class": "ConsoleAppender",
+                    "stream": io.StringIO(),
+                    "immediateFlush": False,
+                    "layout": {"class": "PatternLayout", "pattern": "%m"},
+                }
+            },
+        }
+    )
+    app = getRootLogger().getAppenders()[0]
+    assert isinstance(app, ConsoleAppender)
+    assert app.immediateFlush is False
+
+
 def test_dictconfig_custom_level():
     from log4p import getLevel
 

@@ -6,6 +6,7 @@ from log4p import (
     HTMLLayout,
     Level,
     LogRecord,
+    MemoryAppender,
     PatternLayout,
     RotatingFileAppender,
     ThresholdFilter,
@@ -14,6 +15,58 @@ from log4p import (
 
 def record(message="hello", level=Level.INFO):
     return LogRecord(name="app", level=level, message=message)
+
+
+def test_memory_appender_captures_events():
+    appender = MemoryAppender(PatternLayout("%p %m"))
+    appender.doAppend(record())
+    appender.doAppend(record("bye", level=Level.WARN))
+    assert appender.getEvents() == ["INFO hello", "WARN bye"]
+    assert [r.getMessage() for r in appender.getRecords()] == ["hello", "bye"]
+
+
+def test_memory_appender_max_size_keeps_recent():
+    appender = MemoryAppender(PatternLayout("%m"), maxSize=2)
+    for i in range(4):
+        appender.doAppend(record(str(i)))
+    assert appender.getEvents() == ["2", "3"]
+
+
+def test_memory_appender_clear():
+    appender = MemoryAppender()
+    appender.doAppend(record())
+    appender.clear()
+    assert appender.getEvents() == []
+    assert appender.getRecords() == []
+
+
+def test_console_appender_immediate_flush_disabled():
+    class _Spy(io.StringIO):
+        flushes = 0
+
+        def flush(self):
+            type(self).flushes += 1
+            return super().flush()
+
+    buf = _Spy()
+    appender = ConsoleAppender(PatternLayout("%m"), stream=buf, immediateFlush=False)
+    appender.doAppend(record())
+    assert _Spy.flushes == 0
+    appender.flush()
+    assert _Spy.flushes == 1
+
+
+def test_console_appender_default_flushes():
+    class _Spy(io.StringIO):
+        flushes = 0
+
+        def flush(self):
+            type(self).flushes += 1
+            return super().flush()
+
+    buf = _Spy()
+    ConsoleAppender(PatternLayout("%m"), stream=buf).doAppend(record())
+    assert _Spy.flushes == 1
 
 
 def test_console_appender_writes_to_stream():
