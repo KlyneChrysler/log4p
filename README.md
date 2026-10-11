@@ -435,7 +435,8 @@ config.basicConfig(level="INFO", filename="app.log")
 
 See `examples/` for runnable snippets (`basic.py`, `from_config.py`,
 `demo.py`, `async_and_bridge.py`, `markers_and_layouts.py`,
-`patterns_and_filters.py`, `rolling_and_rewrite.py`, `net_appenders.py`).
+`patterns_and_filters.py`, `rolling_and_rewrite.py`, `cron_rolling.py`,
+`net_appenders.py`).
 Captured output for the demo lives in
 [`examples/output.md`](examples/output.md).
 
